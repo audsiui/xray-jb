@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xray VLESS 配置生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3B82F6;
+            --primary-hover: #2563EB;
+            --secondary: #1E293B;
+            --cta: #2563EB;
+            --background: #0F172A;
+            --surface: rgba(30, 41, 59, 0.8);
+            --surface-light: rgba(51, 65, 85, 0.5);
+            --text: #F1F5F9;
+            --text-muted: #94A3B8;
+            --text-dark: #475569;
+            --border: #334155;
+            --border-light: #475569;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            background-image:
+                radial-gradient(ellipse at top, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem 0;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary) 0%, #8B5CF6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Glass Card */
+        .glass-card {
+            background: var(--surface);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Mode Selection */
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .mode-card {
+            background: var(--surface-light);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+        }
+
+        .mode-card.active {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .mode-card.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), #8B5CF6);
+        }
+
+        .mode-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .mode-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Form Styles */
+        .form-section {
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        label .required {
+            color: var(--error);
+            margin-left: 2px;
+        }
+
+        label .badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            background: var(--surface-light);
+            border-radius: 4px;
+            color: var(--text-muted);
+            margin-left: 0.5rem;
+            font-weight: 400;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        input::placeholder {
+            color: var(--text-muted);
+        }
+
+        input.error {
+            border-color: var(--error);
+        }
+
+        input.success {
+            border-color: var(--success);
+        }
+
+        .input-hint {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.4rem;
+        }
+
+        .input-hint.error {
+            color: var(--error);
+        }
+
+        .input-hint.success {
+            color: var(--success);
+        }
+
+        /* Buttons */
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--surface-light);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn-icon {
+            padding: 0.5rem;
+            width: 38px;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Output Section */
+        .output-section {
+            display: none;
+        }
+
+        .output-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .output-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .output-header h3 {
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .code-block code {
+            color: #A5B4FC;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .copy-btn.copied {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-badge.ready {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .status-badge.pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        /* Icon SVG */
+        .icon {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            color: var(--text);
+            background: var(--surface-light);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Info Box */
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-box h4 {
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-box ul {
+            margin: 0;
+            padding-left: 1.2rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .info-box li {
+            margin-bottom: 0.3rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .glass-card {
+                padding: 1.5rem 1rem;
+            }
+
+            .mode-selector {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Xray VLESS 配置生成器</h1>
+            <p>快速生成部署命令，支持直连模式和 Cloudflare Tunnel 模式</p>
+        </header>
+
+        <!-- Mode Selection -->
+        <div class="glass-card">
+            <h2 style="font-size: 1.1rem; margin-bottom: 1rem;">选择部署模式</h2>
+            <div class="mode-selector">
+                <div class="mode-card active" data-mode="direct">
+                    <h3>
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                        直连模式
+                    </h3>
+                    <p>VLESS + WebSocket 直接连接，需要服务器有公网 IP，配置简单快速</p>
+                </div>
+                <div class="mode-card" data-mode="tunnel">
+                    <h3>
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+                        隧道模式
+                    </h3>
+                    <p>VLESS + WebSocket + Cloudflare Tunnel，无需公网 IP，通过 CDN 隐藏真实 IP</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Direct Mode Form -->
+        <div class="glass-card form-section active" id="direct-form">
+            <div class="output-header">
+                <h3>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    直连模式配置
+                </h3>
+                <span class="status-badge pending" id="direct-status">配置中</span>
+            </div>
+
+            <div class="info-box">
+                <h4>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    直连模式说明
+                </h4>
+                <ul>
+                    <li>适合有公网 IP 的服务器</li>
+                    <li>需要确保防火墙已开放对应端口</li>
+                    <li>自动生成 UUID 和 WebSocket 路径</li>
+                </ul>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>监听端口 <span class="required">*</span></label>
+                    <input type="number" id="direct-port" min="1" max="65535" value="8080" placeholder="8080">
+                    <div class="input-hint" id="direct-port-hint">端口范围: 1-65535</div>
+                </div>
+                <div class="form-group">
+                    <label>UUID <span class="badge">自动生成</span></label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="direct-uuid" readonly placeholder="点击生成">
+                        <button type="button" class="btn btn-secondary btn-icon" onclick="generateUUID('direct-uuid')" title="重新生成">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>WebSocket 路径 <span class="badge">自动生成</span></label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="direct-path" readonly placeholder="点击生成">
+                    <button type="button" class="btn btn-secondary btn-icon" onclick="generatePath('direct-path')" title="重新生成">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-primary" onclick="generateDirect()">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                生成配置
+            </button>
+        </div>
+
+        <!-- Tunnel Mode Form -->
+        <div class="glass-card form-section" id="tunnel-form">
+            <div class="output-header">
+                <h3>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+                    隧道模式配置
+                </h3>
+                <span class="status-badge pending" id="tunnel-status">配置中</span>
+            </div>
+
+            <div class="info-box">
+                <h4>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    隧道模式说明
+                </h4>
+                <ul>
+                    <li>需要 Cloudflare Account 和 Tunnel Token</li>
+                    <li>无需公网 IP，适合内网服务器</li>
+                    <li>通过 Cloudflare CDN 隐藏真实服务器 IP</li>
+                </ul>
+            </div>
+
+            <div class="form-group">
+                <label>Cloudflare Tunnel Token <span class="required">*</span></label>
+                <input type="text" id="tunnel-token" placeholder="从 Cloudflare Zero Dashboard 获取">
+                <div class="input-hint" id="tunnel-token-hint">在 Cloudflare Zero Dashboard 创建 Tunnel 后获取 Token</div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>绑定域名 <span class="required">*</span></label>
+                    <input type="text" id="tunnel-domain" placeholder="example.com">
+                    <div class="input-hint" id="tunnel-domain-hint">已添加到 Cloudflare 的域名</div>
+                </div>
+                <div class="form-group">
+                    <label>本地端口 <span class="badge">默认 10086</span></label>
+                    <input type="number" id="tunnel-port" min="1" max="65535" value="10086" placeholder="10086">
+                    <div class="input-hint" id="tunnel-port-hint">端口范围: 1-65535</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>优选域名 <span class="badge">可选</span></label>
+                <input type="text" id="tunnel-opt-domain" value="cf.tencentapp.cn" placeholder="cf.tencentapp.cn">
+                <div class="input-hint" id="tunnel-opt-domain-hint">用于生成连接地址，可使用优选 IP 域名加速</div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>UUID <span class="badge">自动生成</span></label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="tunnel-uuid" readonly placeholder="点击生成">
+                        <button type="button" class="btn btn-secondary btn-icon" onclick="generateUUID('tunnel-uuid')" title="重新生成">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>WebSocket 路径 <span class="badge">自动生成</span></label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="tunnel-path" readonly placeholder="点击生成">
+                        <button type="button" class="btn btn-secondary btn-icon" onclick="generatePath('tunnel-path')" title="重新生成">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-primary" onclick="generateTunnel()">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                生成配置
+            </button>
+        </div>
+
+        <!-- Output Section -->
+        <div class="glass-card output-section" id="output">
+            <h2 style="font-size: 1.1rem; margin-bottom: 1rem;">生成结果</h2>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="command">安装命令</button>
+                <button class="tab" data-tab="vless">VLESS 链接</button>
+                <button class="tab" data-tab="config">配置 JSON</button>
+            </div>
+
+            <!-- Command Tab -->
+            <div class="tab-content active" id="tab-command">
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyToClipboard('command-output')">复制</button>
+                    <pre><code id="command-output"></code></pre>
+                </div>
+                <div class="info-box" style="margin-bottom: 0;">
+                    <h4>
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                        使用说明
+                    </h4>
+                    <ol style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-muted);">
+                        <li>SSH 连接到你的服务器</li>
+                        <li>复制并粘贴上述命令，按回车执行</li>
+                        <li>脚本会自动安装并启动服务</li>
+                        <li>使用 VLESS 链接导入到客户端</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- VLESS Tab -->
+            <div class="tab-content" id="tab-vless">
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyToClipboard('vless-output')">复制</button>
+                    <pre><code id="vless-output"></code></pre>
+                </div>
+                <p class="input-hint">将此链接导入到 V2RayN、Clash、Sing-box 等客户端</p>
+            </div>
+
+            <!-- Config Tab -->
+            <div class="tab-content" id="tab-config">
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyToClipboard('config-output')">复制</button>
+                    <pre><code id="config-output"></code></pre>
+                </div>
+                <p class="input-hint">服务器配置文件路径: /opt/xray-bundle/config.json</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentMode = 'direct';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initModeSelector();
+            initTabs();
+            initValidation();
+            generateUUID('direct-uuid');
+            generatePath('direct-path');
+        });
+
+        // Mode Selection
+        function initModeSelector() {
+            const cards = document.querySelectorAll('.mode-card');
+            cards.forEach(card => {
+                card.addEventListener('click', () => {
+                    cards.forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                    currentMode = card.dataset.mode;
+                    showForm(currentMode);
+                    hideOutput();
+                });
+            });
+        }
+
+        function showForm(mode) {
+            document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
+            document.getElementById(`${mode}-form`).classList.add('active');
+        }
+
+        function hideOutput() {
+            document.getElementById('output').classList.remove('active');
+        }
+
+        // Tabs
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const tabName = tab.dataset.tab;
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    document.getElementById(`tab-${tabName}`).classList.add('active');
+                });
+            });
+        }
+
+        // Validation
+        function initValidation() {
+            // Port validation
+            validateInput('direct-port', (val) => validatePort(val), 'direct-port-hint');
+            validateInput('tunnel-port', (val) => validatePort(val), 'tunnel-port-hint');
+
+            // Domain validation
+            validateInput('tunnel-domain', (val) => validateDomain(val), 'tunnel-domain-hint');
+
+            // Token validation
+            validateInput('tunnel-token', (val) => validateToken(val), 'tunnel-token-hint');
+
+            // Opt domain validation (optional)
+            validateInput('tunnel-opt-domain', (val) => validateOptDomain(val), 'tunnel-opt-domain-hint');
+        }
+
+        function validateInput(id, validator, hintId) {
+            const input = document.getElementById(id);
+            const hint = document.getElementById(hintId);
+
+            input.addEventListener('input', () => {
+                const result = validator(input.value);
+                if (result.valid) {
+                    input.classList.remove('error');
+                    input.classList.add('success');
+                    hint.classList.remove('error');
+                    hint.classList.add('success');
+                    hint.textContent = result.message || input.value;
+                } else {
+                    input.classList.remove('success');
+                    input.classList.add('error');
+                    hint.classList.remove('success');
+                    hint.classList.add('error');
+                    hint.textContent = result.message;
+                }
+            });
+        }
+
+        function validatePort(val) {
+            const num = parseInt(val);
+            if (!val || isNaN(num)) {
+                return { valid: false, message: '请输入有效的端口号' };
+            }
+            if (num < 1 || num > 65535) {
+                return { valid: false, message: '端口范围: 1-65535' };
+            }
+            return { valid: true, message: `端口 ${num} 可用` };
+        }
+
+        function validateDomain(val) {
+            if (!val) {
+                return { valid: false, message: '域名不能为空' };
+            }
+            const regex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+            if (!regex.test(val)) {
+                return { valid: false, message: '请输入有效的域名格式' };
+            }
+            return { valid: true, message: `域名 ${val} 格式正确` };
+        }
+
+        function validateToken(val) {
+            if (!val) {
+                return { valid: false, message: 'Token 不能为空' };
+            }
+            if (val.length < 20) {
+                return { valid: false, message: 'Token 长度似乎太短（通常 ≥20 字符）' };
+            }
+            return { valid: true, message: `Token 长度: ${val.length} 字符` };
+        }
+
+        function validateOptDomain(val) {
+            if (!val) {
+                return { valid: true, message: '使用默认优选域名' };
+            }
+            const regex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+            if (!regex.test(val)) {
+                return { valid: false, message: '请输入有效的域名格式' };
+            }
+            return { valid: true, message: `优选域名: ${val}` };
+        }
+
+        // Generate UUID
+        function generateUUID(elementId) {
+            const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+            document.getElementById(elementId).value = uuid;
+        }
+
+        // Generate WebSocket path
+        function generatePath(elementId) {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let path = '/';
+            for (let i = 0; i < 4; i++) {
+                path += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById(elementId).value = path;
+        }
+
+        // Generate Direct Mode
+        function generateDirect() {
+            const port = document.getElementById('direct-port').value;
+            const uuid = document.getElementById('direct-uuid').value;
+            const path = document.getElementById('direct-path').value;
+
+            // Validate
+            const portValid = validatePort(port);
+            if (!portValid.valid) {
+                alert('端口无效: ' + portValid.message);
+                return;
+            }
+
+            if (!uuid) {
+                alert('请生成 UUID');
+                return;
+            }
+
+            if (!path) {
+                alert('请生成 WebSocket 路径');
+                return;
+            }
+
+            // Generate command
+            const command = `bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh) -m direct -p ${port}`;
+
+            // Generate vless link (placeholder IP)
+            const pathEncoded = encodeURIComponent(path);
+            const vlessLink = `vless://${uuid}@YOUR_SERVER_IP:${port}?encryption=none&security=none&type=ws&path=${pathEncoded}#Direct_${port}`;
+
+            // Generate config JSON
+            const config = {
+                log: { loglevel: "warning" },
+                inbounds: [{
+                    port: parseInt(port),
+                    protocol: "vless",
+                    settings: {
+                        clients: [{ id: uuid }],
+                        decryption: "none"
+                    },
+                    streamSettings: {
+                        network: "ws",
+                        wsSettings: { path: path }
+                    }
+                }],
+                outbounds: [{ protocol: "freedom" }]
+            };
+
+            // Display output
+            displayOutput(command, vlessLink, config);
+            updateStatus('direct-status', 'ready');
+        }
+
+        // Generate Tunnel Mode
+        function generateTunnel() {
+            const token = document.getElementById('tunnel-token').value;
+            const domain = document.getElementById('tunnel-domain').value;
+            const port = document.getElementById('tunnel-port').value;
+            const optDomain = document.getElementById('tunnel-opt-domain').value || 'cf.tencentapp.cn';
+            const uuid = document.getElementById('tunnel-uuid').value;
+            const path = document.getElementById('tunnel-path').value;
+
+            // Validate
+            const tokenValid = validateToken(token);
+            if (!tokenValid.valid) {
+                alert('Token 无效: ' + tokenValid.message);
+                return;
+            }
+
+            const domainValid = validateDomain(domain);
+            if (!domainValid.valid) {
+                alert('域名无效: ' + domainValid.message);
+                return;
+            }
+
+            const portValid = validatePort(port);
+            if (!portValid.valid) {
+                alert('端口无效: ' + portValid.message);
+                return;
+            }
+
+            if (!uuid) {
+                alert('请生成 UUID');
+                return;
+            }
+
+            if (!path) {
+                alert('请生成 WebSocket 路径');
+                return;
+            }
+
+            // Generate command
+            const command = `bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh) -m tunnel -d "${domain}" -t "${token}" -p ${port} --opt-domain "${optDomain}"`;
+
+            // Generate vless link
+            const pathEncoded = encodeURIComponent(path);
+            const vlessLink = `vless://${uuid}@${optDomain}:443?encryption=none&security=tls&type=ws&host=${domain}&path=${pathEncoded}&sni=${domain}#Tunnel_${domain}`;
+
+            // Generate config JSON
+            const config = {
+                log: { loglevel: "warning" },
+                inbounds: [{
+                    port: parseInt(port),
+                    listen: "127.0.0.1",
+                    protocol: "vless",
+                    settings: {
+                        clients: [{ id: uuid }],
+                        decryption: "none"
+                    },
+                    streamSettings: {
+                        network: "ws",
+                        wsSettings: { path: path }
+                    }
+                }],
+                outbounds: [{ protocol: "freedom" }]
+            };
+
+            // Display output
+            displayOutput(command, vlessLink, config);
+            updateStatus('tunnel-status', 'ready');
+        }
+
+        // Display Output
+        function displayOutput(command, vlessLink, config) {
+            document.getElementById('command-output').textContent = command;
+            document.getElementById('vless-output').textContent = vlessLink;
+            document.getElementById('config-output').textContent = JSON.stringify(config, null, 2);
+            document.getElementById('output').classList.add('active');
+
+            // Scroll to output
+            document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Update Status Badge
+        function updateStatus(elementId, status) {
+            const el = document.getElementById(elementId);
+            el.className = 'status-badge ' + status;
+            el.textContent = status === 'ready' ? '已就绪' : '配置中';
+        }
+
+        // Copy to Clipboard
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '已复制!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(() => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '已复制!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
