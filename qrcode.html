@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLESS 配置二维码</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3B82F6;
+            --primary-hover: #2563EB;
+            --background: #0F172A;
+            --surface: rgba(30, 41, 59, 0.9);
+            --text: #F1F5F9;
+            --text-muted: #94A3B8;
+            --border: #334155;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image:
+                radial-gradient(ellipse at top, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .empty-state {
+            background: var(--surface);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 3rem 2rem;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .empty-state p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Modal Content */
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .modal-header p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* QR Code Container */
+        .qrcode-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 260px;
+        }
+
+        .qrcode-container canvas,
+        .qrcode-container img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .qrcode-loading {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* Link Display */
+        .link-display {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .link-display label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .link-display .link-text {
+            font-size: 0.75rem;
+            color: var(--primary);
+            word-break: break-all;
+            line-height: 1.4;
+        }
+
+        /* Buttons */
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            color: var(--text);
+            border-color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Mode Badge */
+        .mode-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .mode-badge.direct {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--primary);
+        }
+
+        .mode-badge.tunnel {
+            background: rgba(139, 92, 246, 0.2);
+            color: #A78BFA;
+        }
+
+        .mode-badge svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .modal {
+                padding: 1.5rem;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .qrcode-container {
+                padding: 1rem;
+                min-height: 220px;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Empty State (shown when no params) -->
+        <div class="empty-state" id="emptyState">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            </svg>
+            <h2>缺少配置参数</h2>
+            <p>请通过部署脚本访问此页面，或手动提供 vless:// 链接参数</p>
+        </div>
+    </div>
+
+    <!-- Modal (shown when params exist) -->
+    <div class="modal-overlay hidden" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="mode-badge" id="modeBadge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    </svg>
+                    <span id="modeText">直连模式</span>
+                </div>
+                <h2>扫描二维码导入配置</h2>
+                <p>使用 V2RayN、Clash、Sing-box 等客户端扫描</p>
+            </div>
+
+            <div class="qrcode-container">
+                <div id="qrcode"></div>
+                <div class="qrcode-loading hidden" id="qrLoading">生成中...</div>
+            </div>
+
+            <div class="link-display">
+                <label>VLESS 链接</label>
+                <div class="link-text" id="linkText"></div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closeModal()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    关闭
+                </button>
+                <button class="btn btn-primary" onclick="copyLink()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    复制链接
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get query parameters
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Parse VLESS link from query params
+        function parseVLESSLink() {
+            const mode = getQueryParam('mode') || 'direct';
+            const uuid = getQueryParam('uuid');
+            const host = getQueryParam('host');
+            const port = getQueryParam('port') || (mode === 'tunnel' ? '443' : '8080');
+            const path = getQueryParam('path') || '/';
+            const domain = getQueryParam('domain'); // for tunnel mode
+            const sni = getQueryParam('sni') || domain;
+
+            if (!uuid || !host) {
+                return null;
+            }
+
+            let link;
+            if (mode === 'tunnel') {
+                // Tunnel mode: TLS + WS with domain
+                const security = 'tls';
+                const pathEncoded = encodeURIComponent(path);
+                link = `vless://${uuid}@${host}:${port}?encryption=none&security=${security}&type=ws&host=${domain}&path=${pathEncoded}&sni=${sni}#Tunnel_${domain}`;
+            } else {
+                // Direct mode: no TLS
+                const security = 'none';
+                const pathEncoded = encodeURIComponent(path);
+                link = `vless://${uuid}@${host}:${port}?encryption=none&security=${security}&type=ws&path=${pathEncoded}#Direct_${port}`;
+            }
+
+            return { link, mode };
+        }
+
+        // Generate QR Code
+        function generateQRCode(text) {
+            const container = document.getElementById('qrcode');
+            const loading = document.getElementById('qrLoading');
+
+            // Clear previous QR code
+            container.innerHTML = '';
+            loading.classList.remove('hidden');
+
+            // Generate new QR code
+            setTimeout(() => {
+                loading.classList.add('hidden');
+                new QRCode(container, {
+                    text: text,
+                    width: 200,
+                    height: 200,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }, 100);
+        }
+
+        // Show modal with QR code
+        function showModal(link, mode) {
+            const overlay = document.getElementById('modalOverlay');
+            const modeBadge = document.getElementById('modeBadge');
+            const modeText = document.getElementById('modeText');
+            const linkText = document.getElementById('linkText');
+
+            // Update mode badge
+            modeBadge.className = 'mode-badge ' + mode;
+            if (mode === 'tunnel') {
+                modeText.textContent = '隧道模式';
+            } else {
+                modeText.textContent = '直连模式';
+            }
+
+            // Set link text
+            linkText.textContent = link;
+
+            // Generate QR code
+            generateQRCode(link);
+
+            // Show modal
+            overlay.classList.remove('hidden');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.add('hidden');
+        }
+
+        // Copy link to clipboard
+        function copyLink() {
+            const linkText = document.getElementById('linkText').textContent;
+            navigator.clipboard.writeText(linkText).then(() => {
+                alert('链接已复制到剪贴板！');
+            }).catch(() => {
+                // Fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = linkText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('链接已复制到剪贴板！');
+            });
+        }
+
+        // Close modal on overlay click
+        document.getElementById('modalOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'modalOverlay') {
+                closeModal();
+            }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const result = parseVLESSLink();
+
+            if (result && result.link) {
+                // Show modal with QR code
+                showModal(result.link, result.mode);
+            } else {
+                // Show empty state
+                document.getElementById('emptyState').classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

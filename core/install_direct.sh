@@ -142,7 +142,12 @@ EOF
     echo -e "\n${GREEN}=== 直连模式部署完成 ===${PLAIN}"
     echo -e "${CYAN}${LINK}${PLAIN}"
 
-    # 显示二维码（如果请求）
+    # 生成二维码网页链接
+    QR_URL=$(generate_qr_url "direct" "$UUID" "$PUBLIC_IP" "$PORT" "$PATH_STR")
+    echo -e "${GREEN}二维码链接: ${PLAIN}${CYAN}${QR_URL}${PLAIN}"
+    echo -e "${YELLOW}提示: 在手机浏览器打开上方链接即可扫描二维码${PLAIN}"
+
+    # 显示终端二维码（如果请求）
     if [[ "$ARG_QR" == "true" ]]; then
         show_qr_code "$LINK"
     fi

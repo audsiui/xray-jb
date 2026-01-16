@@ -227,9 +227,15 @@ show_config_link() {
     uuid=$(sed -nE 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONFIG_FILE" | head -1)
     path=$(sed -nE 's/.*"path"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONFIG_FILE" | head -1)
 
+    local link qr_url
+
     if [[ "$mode" == "direct" ]]; then
         public_ip=$(get_public_ip)
-        echo "vless://${uuid}@${public_ip}:${port}?encryption=none&security=none&type=ws&path=${path}#Direct_${port}"
+        link="vless://${uuid}@${public_ip}:${port}?encryption=none&security=none&type=ws&path=${path}#Direct_${port}"
+        qr_url=$(generate_qr_url "direct" "$uuid" "$public_ip" "$port" "$path")
+        echo -e "${CYAN}${link}${PLAIN}"
+        echo ""
+        echo -e "${GREEN}二维码链接: ${PLAIN}${CYAN}${qr_url}${PLAIN}"
     elif [[ "$mode" == "tunnel" ]]; then
         # 从域名信息文件读取域名
         local domain_info_file="${WORK_DIR}/.domain_info"
@@ -242,7 +248,11 @@ show_config_link() {
 
         if [[ -n "$domain" && -n "$opt_domain" && -n "$uuid" && -n "$port" && -n "$path" ]]; then
             # 生成完整的 vless:// 链接
-            echo "vless://${uuid}@${opt_domain}:443?encryption=none&security=tls&type=ws&host=${domain}&path=${path}&sni=${domain}#Tunnel_${domain}"
+            link="vless://${uuid}@${opt_domain}:443?encryption=none&security=tls&type=ws&host=${domain}&path=${path}&sni=${domain}#Tunnel_${domain}"
+            qr_url=$(generate_qr_url "tunnel" "$uuid" "$opt_domain" "443" "$path" "$domain" "$domain")
+            echo -e "${CYAN}${link}${PLAIN}"
+            echo ""
+            echo -e "${GREEN}二维码链接: ${PLAIN}${CYAN}${qr_url}${PLAIN}"
         else
             # 域名信息不完整，显示原始配置
             log_warn "域名信息不完整，无法生成完整链接"
@@ -269,7 +279,7 @@ run_manage_menu() {
         echo -e "  3. 停止服务"
         echo -e "  4. 重启服务"
         echo -e "  5. 查看详细状态"
-        echo -e "  6. 查看配置链接"
+        echo -e "  6. 查看配置链接（含二维码链接）"
         echo -e "  7. 显示配置二维码"
         echo -e "  0. 返回主菜单"
         echo -e "------------------------------------------------"

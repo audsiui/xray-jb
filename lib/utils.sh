@@ -356,3 +356,30 @@ ensure_qrencode() {
     fi
     return 0
 }
+
+# 生成二维码网页链接
+generate_qr_url() {
+    local mode="$1"
+    local uuid="$2"
+    local host="$3"
+    local port="$4"
+    local path="$5"
+    local domain="${6:-}"  # tunnel mode 需要
+    local sni="${7:-$domain}"  # tunnel mode SNI
+
+    # URL 编码 path
+    local encoded_path
+    encoded_path=$(echo "$path" | jq -sRr @uri 2>/dev/null || echo "$path")
+
+    local base_url="https://audsiui.github.io/xray-jb/qrcode.html"
+    local params="?mode=${mode}&uuid=${uuid}&host=${host}&port=${port}&path=${encoded_path}"
+
+    if [[ "$mode" == "tunnel" && -n "$domain" ]]; then
+        params="${params}&domain=${domain}"
+        if [[ -n "$sni" ]]; then
+            params="${params}&sni=${sni}"
+        fi
+    fi
+
+    echo "${base_url}${params}"
+}
