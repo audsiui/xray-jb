@@ -1,17 +1,47 @@
 #!/bin/bash
 
-# 获取当前脚本所在目录
-BASE_DIR=$(cd "$(dirname "$0")" && pwd)
+# 远程执行支持：如果模块不存在，自动下载完整目录
+REPO_URL="https://raw.githubusercontent.com/audsiui/xray-jb/main"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 检查是否是远程执行（模块文件不存在）
+if [[ ! -f "${SCRIPT_DIR}/lib/utils.sh" ]]; then
+    TMP_DIR="/tmp/xray-jb-$$"
+    mkdir -p "$TMP_DIR"
+
+    echo "正在下载脚本文件..."
+
+    # 下载所有必需文件
+    FILES=(
+        "lib/utils.sh"
+        "lib/system.sh"
+        "lib/service.sh"
+        "core/install_direct.sh"
+        "core/install_tunnel.sh"
+        "core/uninstall.sh"
+    )
+
+    for file in "${FILES[@]}"; do
+        mkdir -p "$TMP_DIR/$(dirname "$file")"
+        if ! curl -sL "${REPO_URL}/${file}" -o "$TMP_DIR/$file"; then
+            echo "下载失败: $file"
+            rm -rf "$TMP_DIR"
+            exit 1
+        fi
+    done
+
+    SCRIPT_DIR="$TMP_DIR"
+fi
 
 # 加载库文件
-source "${BASE_DIR}/lib/utils.sh"
-source "${BASE_DIR}/lib/system.sh"
-source "${BASE_DIR}/lib/service.sh"
+source "${SCRIPT_DIR}/lib/utils.sh"
+source "${SCRIPT_DIR}/lib/system.sh"
+source "${SCRIPT_DIR}/lib/service.sh"
 
 # 加载核心模块
-source "${BASE_DIR}/core/install_direct.sh"
-source "${BASE_DIR}/core/install_tunnel.sh"
-source "${BASE_DIR}/core/uninstall.sh"
+source "${SCRIPT_DIR}/core/install_direct.sh"
+source "${SCRIPT_DIR}/core/install_tunnel.sh"
+source "${SCRIPT_DIR}/core/uninstall.sh"
 
 # 检查 Root
 check_root
