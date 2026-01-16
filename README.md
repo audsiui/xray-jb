@@ -21,6 +21,10 @@
 
 ## 快速开始
 
+### 网页配置生成器
+
+[🚀 在线配置生成器](https://audsiui.github.io/xray-jb/generator.html) - 可视化配置生成，一键复制安装命令
+
 ### 一键运行（交互模式）
 
 ```bash
