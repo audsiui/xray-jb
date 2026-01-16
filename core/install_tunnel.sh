@@ -220,6 +220,14 @@ EOF
     echo "$CF_TOKEN" > "$CF_TOKEN_FILE"
     chmod 600 "$CF_TOKEN_FILE"
 
+    # 保存域名信息（用于后续查看配置链接）
+    DOMAIN_INFO_FILE="${WORK_DIR}/.domain_info"
+    cat > "$DOMAIN_INFO_FILE" <<EOF
+DOMAIN=${DOMAIN}
+OPT_DOMAIN=${OPT_DOMAIN}
+EOF
+    chmod 600 "$DOMAIN_INFO_FILE"
+
     # 4. 启动双服务
     setup_service "xray-t" "${XRAY_BIN}" "run -c ${CONFIG_FILE}"
 

@@ -103,6 +103,7 @@ rc-service cloudflared-t start/stop/restart/status
 - Xray config: `/opt/xray-bundle/config.json`
 - Binary location: `/opt/xray-bundle/xray` or `/opt/xray-bundle/cloudflared`
 - CF Token: `/opt/xray-bundle/.cf_token` (tunnel mode only, 600 permissions)
+- Domain info: `/opt/xray-bundle/.domain_info` (tunnel mode only, 600 permissions)
 - CF wrapper: `/tmp/cloudflared_token.sh` (tunnel mode only)
 
 ## OS Detection Details

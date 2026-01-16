@@ -231,11 +231,29 @@ show_config_link() {
         public_ip=$(get_public_ip)
         echo "vless://${uuid}@${public_ip}:${port}?encryption=none&security=none&type=ws&path=${path}#Direct_${port}"
     elif [[ "$mode" == "tunnel" ]]; then
-        # 从 CF token 文件获取域名比较困难，直接显示配置信息
-        log_warn "隧道模式链接需要手动配置域名"
-        log_info "UUID: $uuid"
-        log_info "端口: $port"
-        log_info "路径: $path"
+        # 从域名信息文件读取域名
+        local domain_info_file="${WORK_DIR}/.domain_info"
+        local domain opt_domain
+
+        if [[ -f "$domain_info_file" ]]; then
+            domain=$(grep "^DOMAIN=" "$domain_info_file" 2>/dev/null | cut -d'=' -f2)
+            opt_domain=$(grep "^OPT_DOMAIN=" "$domain_info_file" 2>/dev/null | cut -d'=' -f2)
+        fi
+
+        if [[ -n "$domain" && -n "$opt_domain" && -n "$uuid" && -n "$port" && -n "$path" ]]; then
+            # 生成完整的 vless:// 链接
+            echo "vless://${uuid}@${opt_domain}:443?encryption=none&security=tls&type=ws&host=${domain}&path=${path}&sni=${domain}#Tunnel_${domain}"
+        else
+            # 域名信息不完整，显示原始配置
+            log_warn "域名信息不完整，无法生成完整链接"
+            log_info "UUID: ${uuid:-未知}"
+            log_info "端口: ${port:-未知}"
+            log_info "路径: ${path:-未知}"
+            if [[ -f "$domain_info_file" ]]; then
+                log_info "绑定域名: ${domain:-未知}"
+                log_info "优选域名: ${opt_domain:-未知}"
+            fi
+        fi
     fi
 }
 
