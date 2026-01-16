@@ -21,6 +21,10 @@
 
 ## 快速开始
 
+### Docker 部署（推荐用于容器化平台）
+
+[🐳 Docker 部署文档](docker/README.md) - 适合无开放端口的容器化平台（Fly.io、Railway、K8s 等）
+
 ### 网页配置生成器
 
 [🚀 在线配置生成器](https://audsiui.github.io/xray-jb/generator.html) - 可视化配置生成，一键复制安装命令
