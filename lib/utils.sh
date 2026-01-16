@@ -131,14 +131,17 @@ download_file() {
     while [[ $retry_count -lt $max_retries ]]; do
         log_info "正在下载: $(basename "$output") (尝试 $((retry_count + 1))/$max_retries)"
 
-        if curl -fL -o "$output" "$url" 2>/dev/null; then
+        if curl -fL --progress-bar -o "$output" "$url"; then
             # 验证文件是否为空
             if [[ -s "$output" ]]; then
+                echo ""  # 换行，让进度条后的输出更整洁
                 return 0
             else
+                echo ""
                 log_err "下载的文件为空"
             fi
         else
+            echo ""
             log_err "下载失败: curl 返回错误"
         fi
 
