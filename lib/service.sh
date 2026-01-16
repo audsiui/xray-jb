@@ -49,18 +49,19 @@ EOF
 # 参数: $1=服务名
 remove_service() {
     local service_name=$1
-    
+
     # Systemd
     if command -v systemctl >/dev/null; then
         systemctl stop ${service_name} >/dev/null 2>&1
         systemctl disable ${service_name} >/dev/null 2>&1
         rm -f /etc/systemd/system/${service_name}.service
     fi
-    
+
     # OpenRC
     if [ -d "/etc/init.d" ]; then
         rc-service ${service_name} stop >/dev/null 2>&1
         rc-update del ${service_name} >/dev/null 2>&1
         rm -f /etc/init.d/${service_name}
+        rm -f /run/${service_name}.pid
     fi
 }
