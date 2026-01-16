@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create archive
+        run: |
+          mkdir -p dist
+          tar czf dist/xray-jb-${{ steps.version.outputs.VERSION }}.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='dist' \
+            .
+
+      - name: Generate checksum
+        run: |
+          cd dist
+          sha256sum xray-jb-${{ steps.version.outputs.VERSION }}.tar.gz > SHA256SUMS
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          body: |
+            ## Xray VLESS 工程化部署脚本 ${{ steps.version.outputs.VERSION }}
+
+            ### 下载
+            - `xray-jb-${{ steps.version.outputs.VERSION }}.tar.gz` - 完整源码包
+            - `SHA256SUMS` - 校验文件
+
+            ### 安装
+
+            ```bash
+            # 下载并解压
+            wget https://github.com/audsiui/xray-jb/releases/download/${{ steps.version.outputs.VERSION }}/xray-jb-${{ steps.version.outputs.VERSION }}.tar.gz
+            tar xzf xray-jb-${{ steps.version.outputs.VERSION }}.tar.gz
+
+            # 运行脚本
+            cd jb
+            bash main.sh
+            ```
+
+            ### 一键运行
+
+            ```bash
+            bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh)
+            ```
+
+            ### 在线配置生成器
+
+            🔧 [配置生成器](https://audsiui.github.io/xray-jb/generator.html)
+
+            ### 更新内容
+
+            查看提交记录了解详细变更。
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
