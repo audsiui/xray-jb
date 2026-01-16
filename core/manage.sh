@@ -57,11 +57,17 @@ get_config_info() {
         return
     fi
 
-    # 解析 JSON 配置
+    # 解析 JSON 配置（使用 sed 而非 grep -P 以兼容更多系统）
     local port uuid path
-    port=$(grep -oP '"port"\s*:\s*\K[0-9]+' "$CONFIG_FILE" 2>/dev/null)
-    uuid=$(grep -oP '"id"\s*:\s*"\K[^"]+' "$CONFIG_FILE" 2>/dev/null)
-    path=$(grep -oP '"path"\s*:\s*"\K[^"]+' "$CONFIG_FILE" 2>/dev/null)
+
+    # 提取 port: "port": 数字,
+    port=$(sed -nE 's/.*"port"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$CONFIG_FILE" | head -1)
+
+    # 提取 uuid: "id": "uuid-string"
+    uuid=$(sed -nE 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONFIG_FILE" | head -1)
+
+    # 提取 path: "path": "/path-string"
+    path=$(sed -nE 's/.*"path"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONFIG_FILE" | head -1)
 
     echo "    端口: ${port:-未知}"
     echo "    UUID: ${uuid:-未知}"
@@ -215,11 +221,11 @@ show_config_link() {
         return 1
     fi
 
-    # 解析配置
+    # 解析配置（使用 sed 而非 grep -P 以兼容更多系统）
     local port uuid path domain public_ip
-    port=$(grep -oP '"port"\s*:\s*\K[0-9]+' "$CONFIG_FILE" 2>/dev/null)
-    uuid=$(grep -oP '"id"\s*:\s*"\K[^"]+' "$CONFIG_FILE" 2>/dev/null)
-    path=$(grep -oP '"path"\s*:\s*"\K[^"]+' "$CONFIG_FILE" 2>/dev/null)
+    port=$(sed -nE 's/.*"port"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$CONFIG_FILE" | head -1)
+    uuid=$(sed -nE 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONFIG_FILE" | head -1)
+    path=$(sed -nE 's/.*"path"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$CONFIG_FILE" | head -1)
 
     if [[ "$mode" == "direct" ]]; then
         public_ip=$(get_public_ip)
