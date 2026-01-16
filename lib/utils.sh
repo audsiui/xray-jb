@@ -48,6 +48,43 @@ validate_port() {
     return 0
 }
 
+# 检测端口是否被占用
+check_port_available() {
+    local port="$1"
+
+    # 优先使用 ss 命令（更快更准确）
+    if command -v ss >/dev/null 2>&1; then
+        if ss -tuln | grep -q ":${port} "; then
+            return 1
+        fi
+    # 回退到 netstat
+    elif command -v netstat >/dev/null 2>&1; then
+        if netstat -tuln 2>/dev/null | grep -q ":${port} "; then
+            return 1
+        fi
+    # 最后回退到 lsof
+    elif command -v lsof >/dev/null 2>&1; then
+        if lsof -i ":${port}" >/dev/null 2>&1; then
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+# 获取占用端口的进程信息
+get_port_process() {
+    local port="$1"
+
+    if command -v ss >/dev/null 2>&1; then
+        ss -tulnp | grep ":${port} " | awk '{print $6}'
+    elif command -v netstat >/dev/null 2>&1; then
+        netstat -tulnp 2>/dev/null | grep ":${port} " | awk '{print $7}'
+    elif command -v lsof >/dev/null 2>&1; then
+        lsof -i ":${port}" | tail -n +2 | awk '{print $1}'
+    fi
+}
+
 # 验证域名
 validate_domain() {
     local domain="$1"
@@ -266,4 +303,43 @@ check_existing_install() {
     log_err "检测到已安装${existing}模式，与${conflict}模式无法共存"
     log_err "请先选择「卸载」后再安装"
     return 1
+}
+
+# 显示二维码
+show_qr_code() {
+    local content="$1"
+
+    # 检查是否安装了 qrencode
+    if ! command -v qrencode >/dev/null 2>&1; then
+        log_warn "未安装 qrencode，跳过二维码显示"
+        log_warn "安装方法: apk add qrencode / apt install qrencode / yum install qrencode"
+        return 0
+    fi
+
+    echo ""
+    echo -e "${CYAN}===== 二维码 =====${PLAIN}"
+    qrencode -t ANSIUTF8 -m 2 "$content"
+    echo -e "${CYAN}=================${PLAIN}"
+}
+
+# 检测并安装 qrencode（可选）
+ensure_qrencode() {
+    if ! command -v qrencode >/dev/null 2>&1; then
+        log_info "正在安装 qrencode..."
+        if command -v apk >/dev/null 2>&1; then
+            apk add -q qrencode
+        elif command -v apt >/dev/null 2>&1; then
+            apt-get install -y qrencode >/dev/null 2>&1
+        elif command -v yum >/dev/null 2>&1; then
+            yum install -y qrencode >/dev/null 2>&1
+        fi
+
+        if command -v qrencode >/dev/null 2>&1; then
+            log_info "qrencode 安装成功"
+        else
+            log_warn "qrencode 安装失败"
+            return 1
+        fi
+    fi
+    return 0
 }

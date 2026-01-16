@@ -1,10 +1,33 @@
 #!/bin/bash
 
+# 非交互式安装入口
+run_direct_install_non_interactive() {
+    # 使用命令行参数或默认值
+    PORT="${ARG_PORT:-8080}"
+
+    # 检查端口是否被占用（非交互模式下直接使用）
+    if ! check_port_available "$PORT"; then
+        local process_info
+        process_info=$(get_port_process "$PORT")
+        log_warn "端口 ${PORT} 已被占用 (${process_info})"
+        log_warn "非交互模式将强制使用此端口"
+    fi
+
+    _do_direct_install
+}
+
+# 交互式安装入口
 run_direct_install() {
     # 检测是否已安装
     if ! check_existing_install "direct"; then
         return 1
     fi
+
+    _do_direct_install
+}
+
+# 实际安装逻辑
+_do_direct_install() {
 
     # 1. 基础安装
     check_sys
@@ -42,20 +65,38 @@ run_direct_install() {
     clean_work_dir "xray" "geoip.dat" "geosite.dat"
 
     # 3. 配置参数（带验证）
-    while true; do
-        read -p "设置端口 (默认 8080): " PORT_INPUT
-        PORT_INPUT=$(trim "$PORT_INPUT")
+    if is_non_interactive; then
+        # 非交互模式：端口已在 run_direct_install_non_interactive 中设置
+        log_info "使用端口: ${PORT}"
+    else
+        # 交互模式：询问端口
+        while true; do
+            read -p "设置端口 (默认 8080): " PORT_INPUT
+            PORT_INPUT=$(trim "$PORT_INPUT")
 
-        if [[ -z "$PORT_INPUT" ]]; then
-            PORT=8080
-            break
-        fi
+            if [[ -z "$PORT_INPUT" ]]; then
+                PORT=8080
+            else
+                if ! validate_port "$PORT_INPUT"; then
+                    continue
+                fi
+                PORT=$PORT_INPUT
+            fi
 
-        if validate_port "$PORT_INPUT"; then
-            PORT=$PORT_INPUT
+            # 检查端口是否被占用
+            if ! check_port_available "$PORT"; then
+                local process_info
+                process_info=$(get_port_process "$PORT")
+                log_warn "端口 ${PORT} 已被占用 (${process_info})"
+                read -p "是否强制使用此端口？[y/N]: " force_choice
+                force_choice=$(trim "$force_choice")
+                if [[ ! "$force_choice" =~ ^[Yy]$ ]]; then
+                    continue
+                fi
+            fi
             break
-        fi
-    done
+        done
+    fi
 
     UUID=$(cat /proc/sys/kernel/random/uuid)
     PATH_STR="/$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1)"
@@ -99,5 +140,11 @@ EOF
     LINK="vless://${UUID}@${PUBLIC_IP}:${PORT}?encryption=none&security=none&type=ws&path=${PATH_STR}#Direct_${PORT}"
 
     echo -e "\n${GREEN}=== 直连模式部署完成 ===${PLAIN}"
-    echo -e "${CYAN}${LINK}${PLAIN}\n"
+    echo -e "${CYAN}${LINK}${PLAIN}"
+
+    # 显示二维码（如果请求）
+    if [[ "$ARG_QR" == "true" ]]; then
+        show_qr_code "$LINK"
+    fi
+    echo ""
 }
