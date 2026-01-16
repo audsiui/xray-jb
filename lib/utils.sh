@@ -229,3 +229,41 @@ clean_work_dir() {
         fi
     done
 }
+
+# 检测服务是否已安装
+check_existing_install() {
+    local mode="$1"  # "direct" 或 "tunnel"
+    local existing=""
+    local conflict=""
+
+    # 检测直连模式服务
+    if command -v systemctl >/dev/null 2>&1; then
+        [[ -f "/etc/systemd/system/xray-d.service" ]] && existing="direct"
+        [[ -f "/etc/systemd/system/xray-t.service" ]] && existing="tunnel"
+    elif [[ -d "/etc/init.d" ]]; then
+        [[ -f "/etc/init.d/xray-d" ]] && existing="direct"
+        [[ -f "/etc/init.d/xray-t" ]] && existing="tunnel"
+    fi
+
+    # 判断冲突
+    if [[ -z "$existing" ]]; then
+        return 0
+    fi
+
+    if [[ "$mode" == "$existing" ]]; then
+        log_err "检测到已安装${mode}模式，无法重复安装"
+        log_err "请先选择「卸载」后再安装"
+        return 1
+    fi
+
+    # 跨模式冲突
+    if [[ "$mode" == "direct" ]]; then
+        conflict="Tunnel"
+    else
+        conflict="直连"
+    fi
+
+    log_err "检测到已安装${existing}模式，与${conflict}模式无法共存"
+    log_err "请先选择「卸载」后再安装"
+    return 1
+}

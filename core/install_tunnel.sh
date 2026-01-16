@@ -1,6 +1,11 @@
 #!/bin/bash
 
 run_tunnel_install() {
+    # 检测是否已安装
+    if ! check_existing_install "tunnel"; then
+        return 1
+    fi
+
     check_sys
     get_arch
     mkdir -p ${WORK_DIR}

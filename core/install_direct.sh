@@ -1,6 +1,11 @@
 #!/bin/bash
 
 run_direct_install() {
+    # 检测是否已安装
+    if ! check_existing_install "direct"; then
+        return 1
+    fi
+
     # 1. 基础安装
     check_sys
     get_arch
