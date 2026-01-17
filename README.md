@@ -1,270 +1,100 @@
-# Xray VLESS 工程化部署脚本
+# Xray VLESS 部署脚本
 
-轻量级、模块化的 Xray (VLESS + WebSocket) 一键安装脚本。
+![Shell](https://img.shields.io/badge/shell-bash-blue)
+![License](https://img.shields.io/github/license/audsiui/xray-jb)
+![Version](https://img.shields.io/github/v/release/audsiui/xray-jb)
+![Stars](https://img.shields.io/github/stars/audsiui/xray-jb)
 
-专为 **Alpine Linux** 优化，同时完美支持 Debian、Ubuntu 和 CentOS。
-
-## 特性
-
-- **模块化架构** - 库文件与核心逻辑分离，易于维护和扩展
-- **双模式支持** - 直连模式 + Cloudflare Tunnel 内网穿透
-- **智能系统识别** - 自动检测包管理器 (`apk`/`apt`/`yum`) 和服务管理器 (systemd/OpenRC)
-- **智能 IP 识别** - 多 API 轮询，支持 IPv4/IPv6 回退和本地路由兜底
-- **端口占用检测** - 安装前自动检测端口是否被占用
-- **安全隐蔽** - 自动生成 UUID，动态 WebSocket 路径（4 位随机字符）
-- **交互式配置** - 支持自定义端口，带输入验证和错误回滚
-- **非交互模式** - 支持命令行参数，适合自动化部署
-- **服务管理** - 内置服务管理菜单，支持启停、状态查看、配置链接查看
-- **版本更新** - 一键更新 Xray 和 cloudflared 到最新版本
-- **二维码显示** - 支持网页链接显示配置二维码
-- **优选域名** - 支持自定义优选域名，默认使用 `cf.tencentapp.cn`
+Xray (VLESS + WebSocket) 一键安装，支持 Alpine/Debian/Ubuntu/CentOS。
 
 ## 快速开始
-
-### Docker 部署（推荐用于容器化平台）
-
-[🐳 Docker 部署文档](docker/README.md) - 适合无开放端口的容器化平台（Fly.io、Railway、K8s 等）
-
-### 网页配置生成器
-
-[🚀 在线配置生成器](https://audsiui.github.io/xray-jb/generator.html) - 可视化配置生成，一键复制安装命令
-
-### 一键运行（交互模式）
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh)
 ```
 
-运行后会显示交互菜单：
+- [Docker 部署](docker/README.md) - 容器化平台
+- [在线配置生成器](https://audsiui.github.io/xray-jb/generator.html)
 
-```
-------------------------------------------------
-  Xray + Tunnel 工程化部署脚本
-------------------------------------------------
-  1. 安装 VLESS + WS (直连模式)
-  2. 安装 VLESS + WS + CF Tunnel (内网穿透)
-  3. 服务管理
-  4. 更新 Xray/cloudflared 版本
-  5. 卸载并清除所有内容
-  0. 退出
-------------------------------------------------
-```
+## 安装模式
 
-### 命令行模式（非交互）
+| 模式 | 说明 |
+|------|------|
+| 直连 | 适合有公网 IP，监听 `0.0.0.0:端口` |
+| Tunnel | 通过 Cloudflare Tunnel 内网穿透，监听 `127.0.0.1:端口` |
 
 ```bash
-# 直连模式安装
+# 直连模式
 bash main.sh --mode direct --port 443
 
-# 隧道模式安装（使用默认优选域名）
-bash main.sh --mode tunnel --port 10086 --domain example.com --token xxxx
-
-# 隧道模式安装（使用自定义优选域名）
-bash main.sh --mode tunnel --port 10086 --domain example.com --token xxxx --opt-domain custom-cf.com
-
-# 服务管理
-bash main.sh --manage --action status
-bash main.sh --manage --action restart
-
-# 更新版本
-bash main.sh --update
-
-# 卸载
-bash main.sh --mode uninstall
-
-# 查看帮助
-bash main.sh --help
+# 隧道模式
+bash main.sh --mode tunnel --domain example.com --token xxxx
 ```
 
 ## 命令行参数
 
 | 参数 | 说明 |
 |------|------|
-| `-m, --mode <MODE>` | 安装模式: `direct`(直连), `tunnel`(CF隧道), `uninstall`(卸载), `manage`(管理), `update`(更新) |
-| `-p, --port <PORT>` | 端口号 (直连默认 8080, 隧道默认 10086) |
-| `-d, --domain <DOMAIN>` | 域名 (tunnel 模式必需) |
-| `-t, --token <TOKEN>` | Cloudflare Tunnel Token (tunnel 模式必需) |
-| `--opt-domain <DOMAIN>` | 优选域名 (tunnel 模式可选，默认 `cf.tencentapp.cn`) |
-| `-M, --manage` | 进入服务管理子菜单 |
-| `-a, --action <ACTION>` | 服务操作: `start`, `stop`, `restart`, `status` |
-| `-u, --update` | 更新 Xray 和 cloudflared 到最新版本 |
-| `-q, --quiet` | 静默模式，减少输出 |
-| `-h, --help` | 显示帮助信息 |
-
-## 安装模式
-
-### 直连模式
-
-适用于有公网 IP 的服务器：
-- Xray 监听 `0.0.0.0:端口`
-- 输出带公网 IP 的 `vless://` 链接
-
-```bash
-# 交互式安装
-bash main.sh
-# 选择 1
-
-# 命令行安装
-bash main.sh --mode direct --port 443
-```
-
-### Tunnel 模式
-
-适用于无公网 IP 或需隐藏真实 IP：
-- Xray 仅监听 `127.0.0.1:端口`（本地）
-- 通过 Cloudflare Tunnel 暴露
-- 需提供 CF Tunnel Token
-- 支持自定义优选域名
-
-```bash
-# 交互式安装
-bash main.sh
-# 选择 2
-
-# 命令行安装（使用默认优选域名）
-bash main.sh --mode tunnel --domain example.com --token xxxx
-
-# 命令行安装（使用自定义优选域名）
-bash main.sh --mode tunnel --domain example.com --token xxxx --opt-domain custom-cf.com
-```
+| `-m, --mode` | `direct`(直连) / `tunnel`(隧道) / `uninstall`(卸载) / `manage`(管理) / `update`(更新) |
+| `-p, --port` | 端口 (直连默认 8080, 隧道默认 10086) |
+| `-d, --domain` | 域名 (tunnel 模式必需) |
+| `-t, --token` | Cloudflare Tunnel Token (tunnel 模式必需) |
+| `--opt-domain` | 优选域名 (默认 `cf.tencentapp.cn`) |
+| `-a, --action` | 服务操作: `start`/`stop`/`restart`/`status` |
+| `-q, --quiet` | 静默模式 |
+| `-h, --help` | 帮助 |
 
 ## 服务管理
 
-### 服务管理菜单
-
-```
-------------------------------------------------
-  服务管理
-------------------------------------------------
-  1. 查看服务状态
-  2. 启动服务
-  3. 停止服务
-  4. 重启服务
-  5. 查看详细状态
-  6. 查看配置链接
-  0. 返回主菜单
-------------------------------------------------
-```
-
-### 文件路径
-
-- **工作目录**: `/opt/xray-bundle/`
-- **配置文件**: `/opt/xray-bundle/config.json`
-- **程序文件**: `/opt/xray-bundle/xray`、`/opt/xray-bundle/cloudflared`
-
-### 服务命令
-
-**Systemd (Debian/Ubuntu/CentOS):**
-
-| 服务 | 说明 |
-|------|------|
-| `xray-d` | 直连模式 Xray 服务 |
-| `xray-t` | 隧道模式 Xray 服务 |
-| `cloudflared-t` | Cloudflare Tunnel 服务 |
-
 ```bash
-systemctl start/stop/restart/status xray-d
-systemctl start/stop/restart/status xray-t
-systemctl start/stop/restart/status cloudflared-t
-```
+# 交互式菜单
+bash main.sh  # 选择 3
 
-**OpenRC (Alpine):**
-
-```bash
-rc-service xray-d start/stop/restart/status
-rc-service xray-t start/stop/restart/status
-rc-service cloudflared-t start/stop/restart/status
-```
-
-### 命令行服务管理
-
-```bash
-# 查看状态
+# 命令行
 bash main.sh --manage --action status
-
-# 重启服务
 bash main.sh --manage --action restart
-
-# 停止服务
-bash main.sh --manage --action stop
-
-# 启动服务
-bash main.sh --manage --action start
 ```
 
-## 版本更新
+**手动管理服务:**
 
-### 交互式更新
+Systemd: `systemctl start/stop/restart/status xray-d`
+OpenRC: `rc-service xray-d start/stop/restart/status`
+
+服务名: `xray-d`(直连) / `xray-t`(隧道) / `cloudflared-t`(CF Tunnel)
+
+## 日志
+
+**位置**: `/opt/xray-bundle/logs/`
 
 ```bash
-bash main.sh
-# 选择 4
+# 实时查看
+tail -f /opt/xray-bundle/logs/xray-d.log
+
+# systemd 额外日志
+journalctl -u xray-d -f
 ```
 
-### 命令行更新
+日志自动轮转，保留 3 个备份。
 
-```bash
-# 更新所有组件
-bash main.sh --update
-```
-
-更新功能会自动检测最新版本，并支持：
-- 更新 Xray
-- 更新 cloudflared
-- 全部更新
-- 自动备份旧版本
-- 更新失败自动回滚
-
-## 二维码显示
-
-安装完成后会自动输出 `vless://` 链接和网页二维码链接。在手机浏览器打开网页链接即可扫描二维码。
-
-### 服务管理中查看二维码
-
-```bash
-bash main.sh
-# 选择 3. 服务管理
-# 选择 6. 查看配置链接
-```
-
-## 优选域名说明
-
-优选域名是 Cloudflare 优选 IP 服务，用于提升连接速度。
-
-- **默认值**: `cf.tencentapp.cn`
-- **用途**: 连接地址使用优选域名，获得更好的速度
-- **自定义**: 可以使用自己的优选域名服务
-
-链接格式：
-```
-vless://UUID@优选域名:443?encryption=none&security=tls&type=ws&host=绑定域名&path=路径&sni=绑定域名
-```
-
-## 架构
+## 文件路径
 
 ```
-jb/
-├── main.sh              # 入口 - 菜单系统、参数解析
-├── lib/
-│   ├── utils.sh         # 工具函数：日志、验证、下载、端口检测、二维码
-│   ├── system.sh        # 系统检测：OS、架构、包管理器
-│   ├── service.sh       # 服务管理：systemd / OpenRC
-│   └── args.sh          # 命令行参数解析
-└── core/
-    ├── install_direct.sh   # 直连模式安装
-    ├── install_tunnel.sh   # 隧道模式安装
-    ├── uninstall.sh        # 卸载
-    ├── manage.sh           # 服务管理
-    └── update.sh           # 版本更新
+/opt/xray-bundle/
+├── config.json       # 配置
+├── xray             # Xray 程序
+├── cloudflared      # CF Tunnel 程序
+└── logs/            # 日志目录
 ```
+
+## 优选域名
+
+隧道模式默认使用 `cf.tencentapp.cn`，可通过 `--opt-domain` 自定义。
 
 ## 注意事项
 
-1. **防火墙** - 请在云服务商安全组放行所选端口（TCP）
-2. **TLS 加密** - 本脚本为无 TLS 模式，建议配合 CDN 或反代使用
-3. **Alpine 用户** - 脚本会自动安装兼容包 (`gcompat` 等)
-4. **端口占用** - 脚本会自动检测端口占用，提示用户处理
-5. **优选域名** - 隧道模式使用优选域名可以获得更好的连接速度
+1. 防火墙需放行所选端口 (TCP)
+2. 本脚本为无 TLS 模式，建议配合 CDN 使用
+3. Alpine 会自动安装兼容包 (`gcompat` 等)
 
 ## License
 

@@ -12,6 +12,8 @@ WORK_DIR="/opt/xray-bundle"
 XRAY_BIN="${WORK_DIR}/xray"
 CF_BIN="${WORK_DIR}/cloudflared"
 CONFIG_FILE="${WORK_DIR}/config.json"
+LOG_DIR="${WORK_DIR}/logs"
+MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10MB
 
 check_root() {
     if [[ $EUID -ne 0 ]]; then
@@ -23,6 +25,44 @@ check_root() {
 log_info() { echo -e "${GREEN}[信息] $1${PLAIN}"; }
 log_warn() { echo -e "${YELLOW}[警告] $1${PLAIN}"; }
 log_err()  { echo -e "${RED}[错误] $1${PLAIN}"; }
+
+# 初始化日志目录
+init_log_dir() {
+    if [[ ! -d "$LOG_DIR" ]]; then
+        mkdir -p "$LOG_DIR"
+        chmod 755 "$LOG_DIR"
+    fi
+}
+
+# 日志轮转（保留最近3个备份）
+rotate_log() {
+    local log_file="$1"
+    local max_backups=3
+
+    # 文件不存在或太小则跳过
+    if [[ ! -f "$log_file" ]]; then
+        return 0
+    fi
+
+    local file_size
+    file_size=$(stat -c%s "$log_file" 2>/dev/null || stat -f%z "$log_file" 2>/dev/null || echo 0)
+
+    if [[ $file_size -lt $MAX_LOG_SIZE ]]; then
+        return 0
+    fi
+
+    # 轮转备份文件
+    for ((i = max_backups - 1; i >= 1; i--)); do
+        local old_backup="${log_file}.${i}"
+        local new_backup="${log_file}.$((i + 1))"
+        if [[ -f "$old_backup" ]]; then
+            mv "$old_backup" "$new_backup" 2>/dev/null
+        fi
+    done
+
+    # 当前日志转为 .1
+    mv "$log_file" "${log_file}.1" 2>/dev/null
+}
 
 # 去除两边空格
 trim() {

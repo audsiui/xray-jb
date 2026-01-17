@@ -12,10 +12,41 @@ WORK_DIR="/opt/xray-bundle"
 XRAY_BIN="${WORK_DIR}/xray"
 CF_BIN="${WORK_DIR}/cloudflared"
 CONFIG_FILE="${WORK_DIR}/config.json"
+LOG_DIR="${WORK_DIR}/logs"
+MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10MB
 
 log_info() { echo -e "${GREEN}[信息] $1${PLAIN}"; }
 log_warn() { echo -e "${YELLOW}[警告] $1${PLAIN}"; }
 log_err()  { echo -e "${RED}[错误] $1${PLAIN}"; }
+
+# 日志轮转（保留最近3个备份）
+rotate_log() {
+    local log_file="$1"
+    local max_backups=3
+
+    if [[ ! -f "$log_file" ]]; then
+        return 0
+    fi
+
+    local file_size
+    file_size=$(stat -c%s "$log_file" 2>/dev/null || stat -f%z "$log_file" 2>/dev/null || echo 0)
+
+    if [[ $file_size -lt $MAX_LOG_SIZE ]]; then
+        return 0
+    fi
+
+    log_warn "日志文件过大，正在轮转: $(basename "$log_file")"
+
+    for ((i = max_backups - 1; i >= 1; i--)); do
+        local old_backup="${log_file}.${i}"
+        local new_backup="${log_file}.$((i + 1))"
+        if [[ -f "$old_backup" ]]; then
+            mv "$old_backup" "$new_backup" 2>/dev/null
+        fi
+    done
+
+    mv "$log_file" "${log_file}.1" 2>/dev/null
+}
 
 # 去除两边空格
 trim() {
@@ -152,7 +183,12 @@ EOF
     chmod 600 ${CONFIG_FILE}
     log_info "Xray 配置文件已生成"
 
-    # 4. 保存配置信息到文件（供查看）
+    # 4. 创建日志目录
+    LOG_DIR="${WORK_DIR}/logs"
+    mkdir -p "$LOG_DIR"
+    chmod 755 "$LOG_DIR"
+
+    # 5. 保存配置信息到文件（供查看）
     cat > "${WORK_DIR}/.info" <<EOF
 UUID=${UUID}
 WS_PATH=${WS_PATH}
@@ -162,9 +198,10 @@ PORT=${PORT}
 EOF
     chmod 600 "${WORK_DIR}/.info"
 
-    # 5. 启动 Xray（后台）
+    # 6. 启动 Xray（后台，日志写入文件）
     log_info "启动 Xray..."
-    ${XRAY_BIN} run -c ${CONFIG_FILE} &
+    XRAY_LOG="${LOG_DIR}/xray.log"
+    ${XRAY_BIN} run -c ${CONFIG_FILE} >> "$XRAY_LOG" 2>&1 &
     XRAY_PID=$!
 
     # 等待 Xray 启动
@@ -172,14 +209,17 @@ EOF
 
     if ! kill -0 "$XRAY_PID" 2>/dev/null; then
         log_err "Xray 启动失败"
+        cat "$XRAY_LOG" 2>/dev/null
         exit 1
     fi
     log_info "Xray 启动成功 (PID: $XRAY_PID)"
+    log_info "Xray 日志: ${XRAY_LOG}"
 
-    # 6. 启动 cloudflared（后台，通过环境变量传递 token）
+    # 7. 启动 cloudflared（后台，通过环境变量传递 token，日志写入文件）
     log_info "启动 Cloudflare Tunnel..."
+    CF_LOG="${LOG_DIR}/cloudflared.log"
     export CF_TOKEN="$CF_TOKEN"
-    ${CF_BIN} tunnel --no-autoupdate run --token "$CF_TOKEN" &
+    ${CF_BIN} tunnel --no-autoupdate run --token "$CF_TOKEN" >> "$CF_LOG" 2>&1 &
     CF_PID=$!
 
     # 等待 cloudflared 启动
@@ -187,12 +227,15 @@ EOF
 
     if ! kill -0 "$CF_PID" 2>/dev/null; then
         log_err "Cloudflared 启动失败，请检查 Token 是否正确"
+        log_err "查看日志: ${CF_LOG}"
+        cat "$CF_LOG" 2>/dev/null
         kill "$XRAY_PID" 2>/dev/null
         exit 1
     fi
     log_info "Cloudflared 启动成功 (PID: $CF_PID)"
+    log_info "Cloudflared 日志: ${CF_LOG}"
 
-    # 7. 生成连接信息
+    # 8. 生成连接信息
     LINK="vless://${UUID}@${OPT_DOMAIN}:443?encryption=none&security=tls&type=ws&host=${DOMAIN}&path=/${WS_PATH}&sni=${DOMAIN}#Tunnel_${DOMAIN}"
     QR_URL=$(generate_qr_url "tunnel" "$UUID" "$OPT_DOMAIN" "443" "/${WS_PATH}" "$DOMAIN" "$DOMAIN")
 
@@ -204,21 +247,27 @@ EOF
     echo -e "${YELLOW}提示: 在手机浏览器打开上方链接即可扫描二维码${PLAIN}"
     echo ""
 
-    # 8. 监控进程
+    # 9. 监控进程
     log_info "服务运行中，监控进程状态..."
 
     while true; do
         # 检查 Xray
         if ! kill -0 "$XRAY_PID" 2>/dev/null; then
-            log_err "Xray 进程已退出！"
+            log_err "Xray 进程已退出！查看日志: ${XRAY_LOG}"
+            tail -n 20 "$XRAY_LOG" 2>/dev/null
             exit 1
         fi
 
         # 检查 cloudflared
         if ! kill -0 "$CF_PID" 2>/dev/null; then
-            log_err "Cloudflared 进程已退出！"
+            log_err "Cloudflared 进程已退出！查看日志: ${CF_LOG}"
+            tail -n 20 "$CF_LOG" 2>/dev/null
             exit 1
         fi
+
+        # 检查并轮转日志
+        rotate_log "$XRAY_LOG"
+        rotate_log "$CF_LOG"
 
         sleep 10
     done
