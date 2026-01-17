@@ -272,10 +272,5 @@ EOF
     QR_URL=$(generate_qr_url "tunnel" "$UUID" "$OPT_DOMAIN" "443" "$PATH_STR" "$DOMAIN" "$DOMAIN")
     echo -e "${GREEN}二维码链接: ${PLAIN}${CYAN}${QR_URL}${PLAIN}"
     echo -e "${YELLOW}提示: 在手机浏览器打开上方链接即可扫描二维码${PLAIN}"
-
-    # 显示终端二维码（如果请求）
-    if [[ "$ARG_QR" == "true" ]]; then
-        show_qr_code "$LINK"
-    fi
     echo ""
 }

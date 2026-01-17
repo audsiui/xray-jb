@@ -279,12 +279,11 @@ run_manage_menu() {
         echo -e "  3. 停止服务"
         echo -e "  4. 重启服务"
         echo -e "  5. 查看详细状态"
-        echo -e "  6. 查看配置链接（含二维码链接）"
-        echo -e "  7. 显示配置二维码"
+        echo -e "  6. 查看配置链接"
         echo -e "  0. 返回主菜单"
         echo -e "------------------------------------------------"
 
-        read -p "请选择 [0-7]: " choice
+        read -p "请选择 [0-6]: " choice
 
         case $choice in
             1)
@@ -308,17 +307,6 @@ run_manage_menu() {
                 clear
                 echo -e "\n${GREEN}=== 配置链接 ===${PLAIN}\n"
                 show_config_link
-                echo ""
-                read -p "按回车键返回..."
-                ;;
-            7)
-                clear
-                echo -e "\n${GREEN}=== 配置二维码 ===${PLAIN}\n"
-                local link
-                link=$(show_config_link)
-                if [[ -n "$link" ]]; then
-                    show_qr_code "$link"
-                fi
                 echo ""
                 read -p "按回车键返回..."
                 ;;

@@ -12,7 +12,6 @@ ARG_OPT_DOMAIN=""     # 优选域名（tunnel 模式，可选）
 ARG_ACTION=""         # 服务管理操作: start, stop, restart, status
 ARG_QUIET=false       # 静默模式
 ARG_HELP=false        # 显示帮助
-ARG_QR=false          # 显示二维码
 
 # 显示帮助信息
 show_help() {
@@ -41,7 +40,6 @@ Xray + Tunnel 工程化部署脚本
 
 其他选项:
     -q, --quiet                静默模式，减少输出
-    --qr                       安装完成后显示二维码 (需 qrencode)
     -h, --help                 显示此帮助信息
 
 示例:
@@ -61,17 +59,13 @@ Xray + Tunnel 工程化部署脚本
     # 更新版本
     bash main.sh --update
 
-    # 安装并显示二维码
-    bash main.sh --mode direct --port 443 --qr
-
 服务管理子菜单选项:
     1. 查看服务状态        - 显示所有服务的运行状态
     2. 启动服务            - 启动已安装的服务
     3. 停止服务            - 停止正在运行的服务
     4. 重启服务            - 重启服务
     5. 查看详细状态        - 显示 systemctl/rc-service 详细输出
-    6. 查看配置链接        - 显示 vless:// 链接
-    7. 显示配置二维码      - 在终端显示二维码（需安装 qrencode）
+    6. 查看配置链接        - 显示 vless:// 链接和二维码网页链接
 
 EOF
 }
@@ -123,10 +117,6 @@ parse_args() {
                 ;;
             -q|--quiet)
                 ARG_QUIET=true
-                shift
-                ;;
-            --qr)
-                ARG_QR=true
                 shift
                 ;;
             -h|--help)

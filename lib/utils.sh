@@ -305,58 +305,6 @@ check_existing_install() {
     return 1
 }
 
-# 显示二维码
-show_qr_code() {
-    local content="$1"
-
-    # 检查是否安装了 qrencode，未安装则自动安装
-    if ! command -v qrencode >/dev/null 2>&1; then
-        log_info "未安装 qrencode，正在自动安装..."
-        if command -v apk >/dev/null 2>&1; then
-            apk add -q qrencode
-        elif command -v apt >/dev/null 2>&1; then
-            apt-get install -y qrencode >/dev/null 2>&1
-        elif command -v yum >/dev/null 2>&1; then
-            yum install -y qrencode >/dev/null 2>&1
-        fi
-
-        # 检查安装是否成功
-        if ! command -v qrencode >/dev/null 2>&1; then
-            log_warn "qrencode 安装失败，跳过二维码显示"
-            log_warn "请手动安装: apk add qrencode / apt install qrencode / yum install qrencode"
-            return 0
-        fi
-        log_info "qrencode 安装成功"
-    fi
-
-    echo ""
-    echo -e "${CYAN}===== 二维码 =====${PLAIN}"
-    qrencode -t ANSIUTF8 -m 2 "$content"
-    echo -e "${CYAN}=================${PLAIN}"
-}
-
-# 检测并安装 qrencode（可选）
-ensure_qrencode() {
-    if ! command -v qrencode >/dev/null 2>&1; then
-        log_info "正在安装 qrencode..."
-        if command -v apk >/dev/null 2>&1; then
-            apk add -q qrencode
-        elif command -v apt >/dev/null 2>&1; then
-            apt-get install -y qrencode >/dev/null 2>&1
-        elif command -v yum >/dev/null 2>&1; then
-            yum install -y qrencode >/dev/null 2>&1
-        fi
-
-        if command -v qrencode >/dev/null 2>&1; then
-            log_info "qrencode 安装成功"
-        else
-            log_warn "qrencode 安装失败"
-            return 1
-        fi
-    fi
-    return 0
-}
-
 # 生成二维码网页链接
 generate_qr_url() {
     local mode="$1"

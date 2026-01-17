@@ -16,7 +16,7 @@
 - **非交互模式** - 支持命令行参数，适合自动化部署
 - **服务管理** - 内置服务管理菜单，支持启停、状态查看、配置链接查看
 - **版本更新** - 一键更新 Xray 和 cloudflared 到最新版本
-- **二维码显示** - 支持终端内显示配置二维码（需 qrencode）
+- **二维码显示** - 支持网页链接显示配置二维码
 - **优选域名** - 支持自定义优选域名，默认使用 `cf.tencentapp.cn`
 
 ## 快速开始
@@ -60,10 +60,7 @@ bash main.sh --mode direct --port 443
 bash main.sh --mode tunnel --port 10086 --domain example.com --token xxxx
 
 # 隧道模式安装（使用自定义优选域名）
-bash main.sh --mode tunnel --port 10086 --domain example.com --token xxxx --opt-domain my优选域名.com
-
-# 安装并显示二维码
-bash main.sh --mode direct --port 443 --qr
+bash main.sh --mode tunnel --port 10086 --domain example.com --token xxxx --opt-domain custom-cf.com
 
 # 服务管理
 bash main.sh --manage --action status
@@ -91,9 +88,7 @@ bash main.sh --help
 | `-M, --manage` | 进入服务管理子菜单 |
 | `-a, --action <ACTION>` | 服务操作: `start`, `stop`, `restart`, `status` |
 | `-u, --update` | 更新 Xray 和 cloudflared 到最新版本 |
-| `--uninstall` | 卸载所有服务并清理文件 |
 | `-q, --quiet` | 静默模式，减少输出 |
-| `--qr` | 安装完成后显示二维码 (需 qrencode) |
 | `-h, --help` | 显示帮助信息 |
 
 ## 安装模式
@@ -130,7 +125,7 @@ bash main.sh
 bash main.sh --mode tunnel --domain example.com --token xxxx
 
 # 命令行安装（使用自定义优选域名）
-bash main.sh --mode tunnel --domain example.com --token xxxx --opt-domain my优选域名.com
+bash main.sh --mode tunnel --domain example.com --token xxxx --opt-domain custom-cf.com
 ```
 
 ## 服务管理
@@ -147,7 +142,6 @@ bash main.sh --mode tunnel --domain example.com --token xxxx --opt-domain my优�
   4. 重启服务
   5. 查看详细状态
   6. 查看配置链接
-  7. 显示配置二维码
   0. 返回主菜单
 ------------------------------------------------
 ```
@@ -223,31 +217,14 @@ bash main.sh --update
 
 ## 二维码显示
 
-### 安装时显示二维码
-
-```bash
-bash main.sh --mode direct --port 443 --qr
-```
+安装完成后会自动输出 `vless://` 链接和网页二维码链接。在手机浏览器打开网页链接即可扫描二维码。
 
 ### 服务管理中查看二维码
 
 ```bash
 bash main.sh
 # 选择 3. 服务管理
-# 选择 7. 显示配置二维码
-```
-
-**注意**: 需要安装 `qrencode` 工具
-
-```bash
-# Alpine
-apk add qrencode
-
-# Debian/Ubuntu
-apt install qrencode
-
-# CentOS
-yum install qrencode
+# 选择 6. 查看配置链接
 ```
 
 ## 优选域名说明
