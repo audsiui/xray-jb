@@ -200,7 +200,7 @@ _do_tunnel_install() {
     # 3. 生成配置（监听 127.0.0.1）
     cat > ${CONFIG_FILE} <<EOF
 {
-  "log": { "loglevel": "warning" },
+  "log": { "loglevel": "warning", "access": "none" },
   "inbounds": [{
     "port": ${PORT},
     "listen": "127.0.0.1",

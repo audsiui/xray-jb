@@ -104,7 +104,7 @@ _do_direct_install() {
     # 4. 生成配置
     cat > ${CONFIG_FILE} <<EOF
 {
-  "log": { "loglevel": "warning" },
+  "log": { "loglevel": "warning", "access": "none" },
   "inbounds": [{
     "port": ${PORT},
     "protocol": "vless",
