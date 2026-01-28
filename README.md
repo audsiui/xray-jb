@@ -13,8 +13,7 @@ Xray (VLESS + WebSocket) 一键安装，支持 Alpine/Debian/Ubuntu/CentOS。
 bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh)
 ```
 
-- [Docker 部署](docker/README.md) - 容器化平台
-- [在线配置生成器](https://audsiui.github.io/xray-jb/generator.html)
+[在线配置生成器](https://audsiui.github.io/xray-jb/generator.html) - 支持脚本安装和 Docker 部署
 
 ## 安装模式
 
