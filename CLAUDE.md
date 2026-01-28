@@ -59,7 +59,7 @@ Two service prefixes are used to avoid conflicts:
 
 **Tunnel Mode** (`install_tunnel.sh`):
 - Downloads Xray + cloudflared
-- Configures Xray to listen on `127.0.0.1:PORT` (localhost only)
+- Configures Xray to listen on `0.0.0.0:PORT`
 - Requires Cloudflare Tunnel token (stored in `/opt/xray-bundle/.cf_token` with 600 permissions)
 - Creates wrapper script `/tmp/cloudflared_token.sh` to pass token via environment variable
 - Outputs `vless://` link with CF domain

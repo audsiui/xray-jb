@@ -165,13 +165,13 @@ main() {
     log_info "UUID: ${UUID}"
     log_info "WS_PATH: ${WS_PATH}"
 
-    # 3. 生成 Xray 配置文件（监听 127.0.0.1）
+    # 3. 生成 Xray 配置文件（监听 0.0.0.0）
     cat > ${CONFIG_FILE} <<EOF
 {
   "log": { "loglevel": "warning" },
   "inbounds": [{
     "port": ${PORT},
-    "listen": "127.0.0.1",
+    "listen": "0.0.0.0",
     "protocol": "vless",
     "settings": { "clients": [{ "id": "${UUID}" }], "decryption": "none" },
     "streamSettings": { "network": "ws", "wsSettings": { "path": "/${WS_PATH}" } }

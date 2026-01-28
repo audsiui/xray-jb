@@ -202,13 +202,13 @@ _do_tunnel_install() {
     UUID=$(cat /proc/sys/kernel/random/uuid)
     PATH_STR="/$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1)"
 
-    # 3. 生成配置（监听 127.0.0.1）
+    # 3. 生成配置（监听 0.0.0.0）
     cat > ${CONFIG_FILE} <<EOF
 {
   "log": { "loglevel": "warning", "access": "none" },
   "inbounds": [{
     "port": ${PORT},
-    "listen": "127.0.0.1",
+    "listen": "0.0.0.0",
     "protocol": "vless",
     "settings": { "clients": [{ "id": "${UUID}" }], "decryption": "none" },
     "streamSettings": { "network": "ws", "wsSettings": { "path": "${PATH_STR}" } }
