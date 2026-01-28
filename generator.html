@@ -526,35 +526,14 @@
                 <ul>
                     <li>适合有公网 IP 的服务器</li>
                     <li>需要确保防火墙已开放对应端口</li>
-                    <li>自动生成 UUID 和 WebSocket 路径</li>
+                    <li>安装完成后，脚本会输出 VLESS 链接和二维码</li>
                 </ul>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label>监听端口 <span class="required">*</span></label>
-                    <input type="number" id="direct-port" min="1" max="65535" value="8080" placeholder="8080">
-                    <div class="input-hint" id="direct-port-hint">端口范围: 1-65535</div>
-                </div>
-                <div class="form-group">
-                    <label>UUID <span class="badge">自动生成</span></label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" id="direct-uuid" readonly placeholder="点击生成">
-                        <button type="button" class="btn btn-secondary btn-icon" onclick="generateUUID('direct-uuid')" title="重新生成">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <div class="form-group">
-                <label>WebSocket 路径 <span class="badge">自动生成</span></label>
-                <div style="display: flex; gap: 0.5rem;">
-                    <input type="text" id="direct-path" readonly placeholder="点击生成">
-                    <button type="button" class="btn btn-secondary btn-icon" onclick="generatePath('direct-path')" title="重新生成">
-                        <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                    </button>
-                </div>
+                <label>监听端口 <span class="required">*</span></label>
+                <input type="number" id="direct-port" min="1" max="65535" value="8080" placeholder="8080">
+                <div class="input-hint" id="direct-port-hint">端口范围: 1-65535</div>
             </div>
 
             <button type="button" class="btn btn-primary" onclick="generateDirect()">
@@ -581,7 +560,7 @@
                 <ul>
                     <li>需要 Cloudflare Account 和 Tunnel Token</li>
                     <li>无需公网 IP，适合内网服务器</li>
-                    <li>通过 Cloudflare CDN 隐藏真实服务器 IP</li>
+                    <li>安装完成后，脚本会输出 VLESS 链接和二维码</li>
                 </ul>
             </div>
 
@@ -610,30 +589,9 @@
                 <div class="input-hint" id="tunnel-opt-domain-hint">用于生成连接地址，可使用优选 IP 域名加速</div>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label>UUID <span class="badge">自动生成</span></label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" id="tunnel-uuid" readonly placeholder="点击生成">
-                        <button type="button" class="btn btn-secondary btn-icon" onclick="generateUUID('tunnel-uuid')" title="重新生成">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>WebSocket 路径 <span class="badge">自动生成</span></label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" id="tunnel-path" readonly placeholder="点击生成">
-                        <button type="button" class="btn btn-secondary btn-icon" onclick="generatePath('tunnel-path')" title="重新生成">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <button type="button" class="btn btn-primary" onclick="generateTunnel()">
                 <svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                生成配置
+                生成命令
             </button>
         </div>
 
@@ -641,17 +599,17 @@
         <div class="glass-card output-section" id="output">
             <h2 style="font-size: 1.1rem; margin-bottom: 1rem;">生成结果</h2>
 
-            <div class="tabs">
-                <button class="tab active" data-tab="command">安装命令</button>
-                <button class="tab" data-tab="vless">VLESS 链接</button>
-                <button class="tab" data-tab="config">配置 JSON</button>
+            <!-- Tabs for Tunnel Mode -->
+            <div class="tabs hidden" id="output-tabs">
+                <button class="tab active" data-tab="script">脚本安装</button>
+                <button class="tab" data-tab="docker">Docker 部署</button>
             </div>
 
-            <!-- Command Tab -->
-            <div class="tab-content active" id="tab-command">
+            <!-- Script Command (Direct Mode & Tunnel Mode - Script) -->
+            <div class="tab-content active" id="tab-script">
                 <div class="code-block">
-                    <button class="copy-btn" onclick="copyToClipboard('command-output')">复制</button>
-                    <pre><code id="command-output"></code></pre>
+                    <button class="copy-btn" onclick="copyToClipboard('script-output')">复制</button>
+                    <pre><code id="script-output"></code></pre>
                 </div>
                 <div class="info-box" style="margin-bottom: 0;">
                     <h4>
@@ -661,28 +619,28 @@
                     <ol style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-muted);">
                         <li>SSH 连接到你的服务器</li>
                         <li>复制并粘贴上述命令，按回车执行</li>
-                        <li>脚本会自动安装并启动服务</li>
-                        <li>使用 VLESS 链接导入到客户端</li>
+                        <li>脚本会自动安装并启动服务，并输出 VLESS 链接和二维码</li>
                     </ol>
                 </div>
             </div>
 
-            <!-- VLESS Tab -->
-            <div class="tab-content" id="tab-vless">
+            <!-- Docker Command (Tunnel Mode Only) -->
+            <div class="tab-content" id="tab-docker">
                 <div class="code-block">
-                    <button class="copy-btn" onclick="copyToClipboard('vless-output')">复制</button>
-                    <pre><code id="vless-output"></code></pre>
+                    <button class="copy-btn" onclick="copyToClipboard('docker-output')">复制</button>
+                    <pre><code id="docker-output"></code></pre>
                 </div>
-                <p class="input-hint">将此链接导入到 V2RayN、Clash、Sing-box 等客户端</p>
-            </div>
-
-            <!-- Config Tab -->
-            <div class="tab-content" id="tab-config">
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyToClipboard('config-output')">复制</button>
-                    <pre><code id="config-output"></code></pre>
+                <div class="info-box" style="margin-bottom: 0;">
+                    <h4>
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                        Docker 部署说明
+                    </h4>
+                    <ol style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-muted);">
+                        <li>确保服务器已安装 Docker</li>
+                        <li>复制并粘贴上述命令，按回车执行</li>
+                        <li>查看配置信息: <code style="background: var(--surface-light); padding: 2px 6px; border-radius: 4px;">docker logs xray-tunnel</code></li>
+                    </ol>
                 </div>
-                <p class="input-hint">服务器配置文件路径: /opt/xray-bundle/config.json</p>
             </div>
         </div>
     </div>
@@ -694,10 +652,8 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             initModeSelector();
-            initTabs();
             initValidation();
-            generateUUID('direct-uuid');
-            generatePath('direct-path');
+            initOutputTabs();
         });
 
         // Mode Selection
@@ -723,15 +679,15 @@
             document.getElementById('output').classList.remove('active');
         }
 
-        // Tabs
-        function initTabs() {
-            const tabs = document.querySelectorAll('.tab');
+        // Output Tabs (for Tunnel Mode)
+        function initOutputTabs() {
+            const tabs = document.querySelectorAll('#output-tabs .tab');
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     tabs.forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
                     const tabName = tab.dataset.tab;
-                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    document.querySelectorAll('#output .tab-content').forEach(c => c.classList.remove('active'));
                     document.getElementById(`tab-${tabName}`).classList.add('active');
                 });
             });
@@ -818,31 +774,9 @@
             return { valid: true, message: `优选域名: ${val}` };
         }
 
-        // Generate UUID
-        function generateUUID(elementId) {
-            const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-                const r = Math.random() * 16 | 0;
-                const v = c === 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
-            document.getElementById(elementId).value = uuid;
-        }
-
-        // Generate WebSocket path
-        function generatePath(elementId) {
-            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-            let path = '/';
-            for (let i = 0; i < 4; i++) {
-                path += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            document.getElementById(elementId).value = path;
-        }
-
         // Generate Direct Mode
         function generateDirect() {
             const port = document.getElementById('direct-port').value;
-            const uuid = document.getElementById('direct-uuid').value;
-            const path = document.getElementById('direct-path').value;
 
             // Validate
             const portValid = validatePort(port);
@@ -851,43 +785,11 @@
                 return;
             }
 
-            if (!uuid) {
-                alert('请生成 UUID');
-                return;
-            }
-
-            if (!path) {
-                alert('请生成 WebSocket 路径');
-                return;
-            }
-
             // Generate command
             const command = `bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh) -m direct -p ${port}`;
 
-            // Generate vless link (placeholder IP)
-            const pathEncoded = encodeURIComponent(path);
-            const vlessLink = `vless://${uuid}@YOUR_SERVER_IP:${port}?encryption=none&security=none&type=ws&path=${pathEncoded}#Direct_${port}`;
-
-            // Generate config JSON
-            const config = {
-                log: { loglevel: "warning" },
-                inbounds: [{
-                    port: parseInt(port),
-                    protocol: "vless",
-                    settings: {
-                        clients: [{ id: uuid }],
-                        decryption: "none"
-                    },
-                    streamSettings: {
-                        network: "ws",
-                        wsSettings: { path: path }
-                    }
-                }],
-                outbounds: [{ protocol: "freedom" }]
-            };
-
             // Display output
-            displayOutput(command, vlessLink, config);
+            displayOutput(command, null);
             updateStatus('direct-status', 'ready');
         }
 
@@ -897,8 +799,6 @@
             const domain = document.getElementById('tunnel-domain').value;
             const port = document.getElementById('tunnel-port').value;
             const optDomain = document.getElementById('tunnel-opt-domain').value || 'cf.tencentapp.cn';
-            const uuid = document.getElementById('tunnel-uuid').value;
-            const path = document.getElementById('tunnel-path').value;
 
             // Validate
             const tokenValid = validateToken(token);
@@ -919,56 +819,55 @@
                 return;
             }
 
-            if (!uuid) {
-                alert('请生成 UUID');
-                return;
-            }
+            // Generate script command
+            const scriptCommand = `bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh) -m tunnel -d "${domain}" -t "${token}" -p ${port} --opt-domain "${optDomain}"`;
 
-            if (!path) {
-                alert('请生成 WebSocket 路径');
-                return;
-            }
-
-            // Generate command
-            const command = `bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh) -m tunnel -d "${domain}" -t "${token}" -p ${port} --opt-domain "${optDomain}"`;
-
-            // Generate vless link
-            const pathEncoded = encodeURIComponent(path);
-            const vlessLink = `vless://${uuid}@${optDomain}:443?encryption=none&security=tls&type=ws&host=${domain}&path=${pathEncoded}&sni=${domain}#Tunnel_${domain}`;
-
-            // Generate config JSON
-            const config = {
-                log: { loglevel: "warning" },
-                inbounds: [{
-                    port: parseInt(port),
-                    listen: "127.0.0.1",
-                    protocol: "vless",
-                    settings: {
-                        clients: [{ id: uuid }],
-                        decryption: "none"
-                    },
-                    streamSettings: {
-                        network: "ws",
-                        wsSettings: { path: path }
-                    }
-                }],
-                outbounds: [{ protocol: "freedom" }]
-            };
+            // Generate docker command
+            const dockerCommand = `docker run -d \\
+  --name xray-tunnel \\
+  --restart unless-stopped \\
+  -e CF_TOKEN="${token}" \\
+  -e DOMAIN="${domain}" \\
+  -e PORT="${port}" \\
+  -e OPT_DOMAIN="${optDomain}" \\
+  ghcr.io/audsiui/xray-jb:latest`;
 
             // Display output
-            displayOutput(command, vlessLink, config);
+            displayOutput(scriptCommand, dockerCommand);
             updateStatus('tunnel-status', 'ready');
         }
 
         // Display Output
-        function displayOutput(command, vlessLink, config) {
-            document.getElementById('command-output').textContent = command;
-            document.getElementById('vless-output').textContent = vlessLink;
-            document.getElementById('config-output').textContent = JSON.stringify(config, null, 2);
-            document.getElementById('output').classList.add('active');
+        function displayOutput(scriptCommand, dockerCommand) {
+            const outputSection = document.getElementById('output');
+            const outputTabs = document.getElementById('output-tabs');
+            const tabScript = document.getElementById('tab-script');
+            const tabDocker = document.getElementById('tab-docker');
+
+            // Set script command
+            document.getElementById('script-output').textContent = scriptCommand;
+
+            if (dockerCommand) {
+                // Tunnel mode: show both tabs
+                outputTabs.classList.remove('hidden');
+                tabDocker.classList.remove('hidden');
+                document.getElementById('docker-output').textContent = dockerCommand;
+                // Reset to first tab
+                outputTabs.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                outputTabs.querySelector('.tab[data-tab="script"]').classList.add('active');
+                tabDocker.classList.remove('active');
+                tabScript.classList.add('active');
+            } else {
+                // Direct mode: hide tabs and docker tab
+                outputTabs.classList.add('hidden');
+                tabDocker.classList.add('hidden');
+                tabScript.classList.add('active');
+            }
+
+            outputSection.classList.add('active');
 
             // Scroll to output
-            document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            outputSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
         // Update Status Badge
