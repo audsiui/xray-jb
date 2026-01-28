@@ -12,6 +12,11 @@ run_tunnel_install_non_interactive() {
         exit 1
     fi
 
+    # 检测是否已安装
+    if ! check_existing_install "tunnel"; then
+        exit 1
+    fi
+
     # 使用命令行参数或默认值
     CF_TOKEN="$ARG_TOKEN"
     DOMAIN="$ARG_DOMAIN"

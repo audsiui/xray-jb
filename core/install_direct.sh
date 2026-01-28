@@ -2,6 +2,11 @@
 
 # 非交互式安装入口
 run_direct_install_non_interactive() {
+    # 检测是否已安装
+    if ! check_existing_install "direct"; then
+        exit 1
+    fi
+
     # 使用命令行参数或默认值
     PORT="${ARG_PORT:-8080}"
 
