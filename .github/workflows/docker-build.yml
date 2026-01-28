@@ -4,11 +4,17 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker-build.yml'
     tags:
       - 'v*'
   pull_request:
     branches:
       - main
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker-build.yml'
   workflow_dispatch:
 
 env:
