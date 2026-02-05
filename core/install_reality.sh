@@ -36,11 +36,31 @@ run_reality_install() {
 generate_reality_keys() {
     # 使用 xray 生成密钥对
     if [[ -f "${XRAY_BIN}" ]]; then
+        # 检查 xray 是否可以执行（在 Alpine 上可能缺少库）
+        if ! chmod +x "${XRAY_BIN}" 2>/dev/null; then
+            log_warn "无法设置 Xray 执行权限"
+        fi
+
+        # 测试 xray 是否能正常运行
+        local version_output
+        version_output=$("${XRAY_BIN}" version 2>&1)
+        if [[ -z "$version_output" ]]; then
+            log_err "Xray 无法运行，可能是缺少依赖库"
+            if [[ "$OS_TYPE" == "alpine" ]]; then
+                log_info "正在尝试修复 Alpine 依赖..."
+                apk add --no-cache libc6-compat gcompat 2>/dev/null || true
+            fi
+            return 1
+        fi
+
         local keypair
-        keypair=$(${XRAY_BIN} x25519 2>/dev/null)
-        if [[ -n "$keypair" ]]; then
+        keypair=$("${XRAY_BIN}" x25519 2>&1)
+        # 兼容新旧版本格式
+        if [[ -n "$keypair" ]] && (echo "$keypair" | grep -q "PrivateKey:" || echo "$keypair" | grep -q "Private key:"); then
             echo "$keypair"
             return 0
+        else
+            log_err "Xray x25519 命令失败: ${keypair}"
         fi
     fi
     return 1
@@ -50,7 +70,12 @@ generate_reality_keys() {
 generate_short_id() {
     # 生成 8 位十六进制 shortId
     local short_id
-    short_id=$(head -c 8 /dev/urandom | xxd -p 2>/dev/null || cat /dev/urandom | tr -dc 'a-f0-9' | fold -w 8 | head -n 1)
+    if command -v xxd >/dev/null 2>&1; then
+        short_id=$(head -c 4 /dev/urandom | xxd -p 2>/dev/null)
+    else
+        # Alpine 可能没有 xxd，使用 od 代替
+        short_id=$(head -c 4 /dev/urandom | od -A n -t x1 | tr -d ' \n')
+    fi
     echo "${short_id:-12345678}"
 }
 
@@ -150,12 +175,39 @@ _do_reality_install() {
     local keypair
     keypair=$(generate_reality_keys)
     if [[ -z "$keypair" ]]; then
-        log_err "生成密钥对失败，使用默认密钥（不安全，仅用于测试）"
-        PRIVATE_KEY="MHg4ZTZjZTBkMi0wOWJiLTExZWYtYTI3NC0xMjM0NTY3ODkwYWJhYmNkZWYtMTIzNC0xMjNlLWE0NTYtNDI2NjE0MTc0MDAw"
-        PUBLIC_KEY="0u9L2hfI-3gf4eOkT3rwdCw3mbn8CHw3yL3hCKf5xVw"
+        log_err "生成密钥对失败，请检查 Xray 是否正确安装"
+        log_err "在 Alpine 系统上，可能需要手动安装: apk add libc6-compat gcompat"
+        read -p "是否使用默认密钥（不安全，仅用于测试）？[y/N]: " use_default_key
+        use_default_key=$(trim "$use_default_key")
+        if [[ "$use_default_key" =~ ^[Yy]$ ]]; then
+            PRIVATE_KEY="MHg4ZTZjZTBkMi0wOWJiLTExZWYtYTI3NC0xMjM0NTY3ODkwYWJhYmNkZWYtMTIzNC0xMjNlLWE0NTYtNDI2NjE0MTc0MDAw"
+            PUBLIC_KEY="0u9L2hfI-3gf4eOkT3rwdCw3mbn8CHw3yL3hCKf5xVw"
+        else
+            rollback_install
+            exit 1
+        fi
     else
-        PRIVATE_KEY=$(echo "$keypair" | grep "Private" | sed 's/Private key: //')
-        PUBLIC_KEY=$(echo "$keypair" | grep "Public" | sed 's/Public key: //')
+        # 解析密钥（兼容新旧版本格式）
+        # 新版本: PrivateKey / Password / Hash32
+        # 旧版本: Private key / Public key
+        PRIVATE_KEY=$(echo "$keypair" | awk -F': ' '/^PrivateKey:/{print $2}')
+        if [[ -z "$PRIVATE_KEY" ]]; then
+            PRIVATE_KEY=$(echo "$keypair" | awk -F': ' '/Private key/{print $2}')
+        fi
+
+        # 新版本的 Password 就是公钥（客户端用）
+        PUBLIC_KEY=$(echo "$keypair" | awk -F': ' '/^Password:/{print $2}')
+        if [[ -z "$PUBLIC_KEY" ]]; then
+            PUBLIC_KEY=$(echo "$keypair" | awk -F': ' '/Public key/{print $2}')
+        fi
+
+        # 验证密钥格式
+        if [[ -z "$PRIVATE_KEY" || -z "$PUBLIC_KEY" ]]; then
+            log_err "解析密钥失败，原始输出:"
+            echo "$keypair"
+            rollback_install
+            exit 1
+        fi
     fi
 
     # 生成 shortId
