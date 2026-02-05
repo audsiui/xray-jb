@@ -42,34 +42,58 @@ jobs:
           body: |
             ## Xray VLESS 工程化部署脚本 ${{ steps.version.outputs.VERSION }}
 
+            ### 支持的协议
+            - **VLESS + WebSocket** - 传统直连模式
+            - **VLESS + XHTTP** - 新型 HTTP 传输协议
+            - **VLESS + REALITY** - TLS 指纹伪装直连
+            - **VLESS + CF Tunnel** - Cloudflare 内网穿透
+
             ### 下载
             - `xray-jb-${{ steps.version.outputs.VERSION }}.tar.gz` - 完整源码包
             - `SHA256SUMS` - 校验文件
 
-            ### 安装
+            ### 快速安装
 
-            ```bash
-            # 下载并解压
-            wget https://github.com/audsiui/xray-jb/releases/download/${{ steps.version.outputs.VERSION }}/xray-jb-${{ steps.version.outputs.VERSION }}.tar.gz
-            tar xzf xray-jb-${{ steps.version.outputs.VERSION }}.tar.gz
+            #### 方式一：配置生成器（推荐）
+            访问 🔧 [在线配置生成器](https://audsiui.github.io/xray-jb/generator.html) 生成安装命令
 
-            # 运行脚本
-            cd jb
-            bash main.sh
-            ```
-
-            ### 一键运行
-
+            #### 方式二：一键运行
             ```bash
             bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh)
             ```
 
-            ### 在线配置生成器
+            #### 方式三：下载安装
+            ```bash
+            # 下载并解压
+            wget https://github.com/audsiui/xray-jb/releases/download/${{ steps.version.outputs.VERSION }}/xray-jb-${{ steps.version.outputs.VERSION }}.tar.gz
+            tar xzf xray-jb-${{ steps.version.outputs.VERSION }}.tar.gz
+            cd xray-jb
+            bash main.sh
+            ```
 
-            🔧 [配置生成器](https://audsiui.github.io/xray-jb/generator.html)
+            ### 命令行安装示例
+
+            ```bash
+            # VLESS + WebSocket
+            bash main.sh --mode direct --port 8080
+
+            # VLESS + XHTTP
+            bash main.sh --mode xhttp --port 8081
+
+            # VLESS + REALITY
+            bash main.sh --mode reality --port 8443
+
+            # VLESS + CF Tunnel
+            bash main.sh --mode tunnel --port 10086 --domain xxx.com --token xxx
+            ```
+
+            ### 特性
+            - ✅ 单进程多入站架构，四种模式可同时运行
+            - ✅ 统一的 systemd/OpenRC 服务管理
+            - ✅ 自动配置合并与热重载
+            - ✅ 支持 Alpine/Debian/Ubuntu/CentOS
 
             ### 更新内容
-
             查看提交记录了解详细变更。
           draft: false
           prerelease: false
