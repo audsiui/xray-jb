@@ -421,14 +421,26 @@
         </button>
 
         <div id="result" class="group-container result-card hidden">
-            <div class="result-header">
-                <span class="result-title">
-                    <svg viewBox="0 0 24 24" class="icon" style="width:18px;height:18px;margin-right:6px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-                    Terminal Command
-                </span>
-                <button class="copy-btn" onclick="copyCommand()">Copy</button>
+            <div id="bash-section">
+                <div class="result-header">
+                    <span class="result-title">
+                        <svg viewBox="0 0 24 24" class="icon" style="width:18px;height:18px;margin-right:6px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                        Terminal Command
+                    </span>
+                    <button class="copy-btn" onclick="copyCommand('command', this)">Copy</button>
+                </div>
+                <div class="command-box" id="command"></div>
             </div>
-            <div class="command-box" id="command"></div>
+            <div id="docker-section" class="hidden" style="margin-top: 20px;">
+                <div class="result-header">
+                    <span class="result-title">
+                        <svg viewBox="0 0 24 24" class="icon" style="width:18px;height:18px;margin-right:6px;"><path d="M4 10h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10z"/><path d="M8 10V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/></svg>
+                        Docker Command
+                    </span>
+                    <button class="copy-btn" onclick="copyCommand('docker-command', this)">Copy</button>
+                </div>
+                <div class="command-box" id="docker-command"></div>
+            </div>
             <p class="info-text">在服务器终端粘贴并运行上述命令</p>
         </div>
     </div>
@@ -474,6 +486,7 @@
             }
             
             // 模式特有参数
+            let dockerCommand = '';
             if (mode === 'tunnel') {
                 const domain = document.getElementById('domain').value.trim();
                 const token = document.getElementById('token').value.trim();
@@ -490,6 +503,10 @@
                 if (optDomain) {
                     command += ` --opt-domain ${optDomain}`;
                 }
+                
+                // 生成 Docker 命令
+                const actualPort = port || defaultPorts[mode];
+                dockerCommand = `docker run -d \\\n  --name xray-tunnel \\\n  --restart always \\\n  -p ${actualPort}:${actualPort} \\\n  -e TUNNEL_TOKEN=${token} \\\n  -e DOMAIN=${domain} \\\n  -e PORT=${actualPort} \\\n  -e OPT_DOMAIN=${optDomain || ''} \\\n  ghcr.io/audsiui/xray-jb:main`;
             } else if (mode === 'reality') {
                 const sni = document.getElementById('sni').value.trim();
                 if (sni && sni !== 'www.microsoft.com') {
@@ -500,17 +517,26 @@
             // 渲染结果
             const resultBox = document.getElementById('result');
             const commandBox = document.getElementById('command');
+            const dockerSection = document.getElementById('docker-section');
+            const dockerCommandBox = document.getElementById('docker-command');
             
             commandBox.textContent = command;
             resultBox.classList.remove('hidden');
+            
+            // 显示或隐藏 Docker 命令区域
+            if (dockerCommand) {
+                dockerCommandBox.textContent = dockerCommand;
+                dockerSection.classList.remove('hidden');
+            } else {
+                dockerSection.classList.add('hidden');
+            }
             
             // 平滑滚动
             resultBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        function copyCommand() {
-            const command = document.getElementById('command').textContent;
-            const btn = document.querySelector('.copy-btn');
+        function copyCommand(elementId, btn) {
+            const command = document.getElementById(elementId).textContent;
             
             navigator.clipboard.writeText(command).then(() => {
                 const originalText = btn.textContent;
