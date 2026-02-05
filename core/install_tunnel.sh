@@ -50,6 +50,7 @@ _do_tunnel_install() {
     check_sys
     get_arch
     mkdir -p ${WORK_DIR}
+    init_log_dir
 
     # 1. 下载组件（带验证和重试）
     log_info "下载组件..."
