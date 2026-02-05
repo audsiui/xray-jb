@@ -55,36 +55,40 @@ _do_tunnel_install() {
     # 1. 下载组件（带验证和重试）
     log_info "下载组件..."
 
-    # 下载 Xray
-    XRAY_ZIP="${WORK_DIR}/xray.zip"
-    if ! download_file "$XRAY_DL" "$XRAY_ZIP"; then
-        log_err "下载 Xray 失败"
-        if ! is_non_interactive; then
-            read -p "是否回滚并清理所有文件？[Y/n]: " rollback_choice
-            rollback_choice=$(trim "$rollback_choice")
-            if [[ ! "$rollback_choice" =~ ^[Nn]$ ]]; then
-                rollback_install
+    # 下载 Xray（如果不存在）
+    if [[ -f "${XRAY_BIN}" ]] && "${XRAY_BIN}" version >/dev/null 2>&1; then
+        log_info "Xray 已存在，跳过下载"
+    else
+        XRAY_ZIP="${WORK_DIR}/xray.zip"
+        if ! download_file "$XRAY_DL" "$XRAY_ZIP"; then
+            log_err "下载 Xray 失败"
+            if ! is_non_interactive; then
+                read -p "是否回滚并清理所有文件？[Y/n]: " rollback_choice
+                rollback_choice=$(trim "$rollback_choice")
+                if [[ ! "$rollback_choice" =~ ^[Nn]$ ]]; then
+                    rollback_install
+                fi
             fi
+            exit 1
         fi
-        exit 1
-    fi
 
-    if ! unzip_file "$XRAY_ZIP" "$WORK_DIR"; then
-        log_err "解压 Xray 失败"
-        if ! is_non_interactive; then
-            read -p "是否回滚并清理所有文件？[Y/n]: " rollback_choice
-            rollback_choice=$(trim "$rollback_choice")
-            if [[ ! "$rollback_choice" =~ ^[Nn]$ ]]; then
-                rollback_install
+        if ! unzip_file "$XRAY_ZIP" "$WORK_DIR"; then
+            log_err "解压 Xray 失败"
+            if ! is_non_interactive; then
+                read -p "是否回滚并清理所有文件？[Y/n]: " rollback_choice
+                rollback_choice=$(trim "$rollback_choice")
+                if [[ ! "$rollback_choice" =~ ^[Nn]$ ]]; then
+                    rollback_install
+                fi
             fi
+            exit 1
         fi
-        exit 1
+
+        chmod +x ${XRAY_BIN}
+
+        # 清理 Xray ZIP 文件
+        rm -f "$XRAY_ZIP"
     fi
-
-    chmod +x ${XRAY_BIN}
-
-    # 清理 Xray ZIP 文件
-    rm -f "$XRAY_ZIP"
 
     # 下载 cloudflared（如果不存在）
     if [[ ! -f "$CF_BIN" ]]; then
@@ -103,8 +107,6 @@ _do_tunnel_install() {
     fi
 
     # 清理其他临时文件
-    clean_work_dir "xray" "geoip.dat" "geosite.dat" "cloudflared"
-
     # 2. 获取输入（带验证）
     if is_non_interactive; then
         # 非交互模式：参数已在 run_tunnel_install_non_interactive 中设置

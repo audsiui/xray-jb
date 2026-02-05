@@ -40,35 +40,39 @@ _do_xhttp_install() {
     mkdir -p ${WORK_DIR}
     init_log_dir
 
-    # 2. 下载 Xray（带验证和重试）
-    log_info "下载 Xray..."
-    XRAY_ZIP="${WORK_DIR}/xray.zip"
+    # 2. 检查是否需要下载 Xray
+    if [[ -f "${XRAY_BIN}" ]] && "${XRAY_BIN}" version >/dev/null 2>&1; then
+        log_info "Xray 已存在，跳过下载"
+    else
+        log_info "下载 Xray..."
+        XRAY_ZIP="${WORK_DIR}/xray.zip"
 
-    if ! download_file "$XRAY_DL" "$XRAY_ZIP"; then
-        log_err "下载 Xray 失败"
-        read -p "是否回滚并清理所有文件？[Y/n]: " rollback_choice
-        rollback_choice=$(trim "$rollback_choice")
-        if [[ ! "$rollback_choice" =~ ^[Nn]$ ]]; then
-            rollback_install
+        if ! download_file "$XRAY_DL" "$XRAY_ZIP"; then
+            log_err "下载 Xray 失败"
+            read -p "是否回滚并清理所有文件？[Y/n]: " rollback_choice
+            rollback_choice=$(trim "$rollback_choice")
+            if [[ ! "$rollback_choice" =~ ^[Nn]$ ]]; then
+                rollback_install
+            fi
+            exit 1
         fi
-        exit 1
-    fi
 
-    if ! unzip_file "$XRAY_ZIP" "$WORK_DIR"; then
-        log_err "解压 Xray 失败"
-        read -p "是否回滚并清理所有文件？[Y/n]: " rollback_choice
-        rollback_choice=$(trim "$rollback_choice")
-        if [[ ! "$rollback_choice" =~ ^[Nn]$ ]]; then
-            rollback_install
+        if ! unzip_file "$XRAY_ZIP" "$WORK_DIR"; then
+            log_err "解压 Xray 失败"
+            read -p "是否回滚并清理所有文件？[Y/n]: " rollback_choice
+            rollback_choice=$(trim "$rollback_choice")
+            if [[ ! "$rollback_choice" =~ ^[Nn]$ ]]; then
+                rollback_install
+            fi
+            exit 1
         fi
-        exit 1
+
+        chmod +x ${XRAY_BIN}
+
+        # 清理 ZIP 文件和其他临时文件
+        rm -f "$XRAY_ZIP"
+        clean_work_dir "xray" "geoip.dat" "geosite.dat"
     fi
-
-    chmod +x ${XRAY_BIN}
-
-    # 清理 ZIP 文件和其他临时文件
-    rm -f "$XRAY_ZIP"
-    clean_work_dir "xray" "geoip.dat" "geosite.dat"
 
     # 3. 配置参数（带验证）
     if is_non_interactive; then
