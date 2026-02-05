@@ -84,29 +84,6 @@ validate_domain() {
     return 0
 }
 
-# 生成 vless 链接和二维码
-generate_qr_url() {
-    local mode="$1"
-    local uuid="$2"
-    local host="$3"
-    local port="$4"
-    local path="$5"
-    local domain="${6:-}"
-    local sni="${7:-$domain}"
-
-    local base_url="https://audsiui.github.io/xray-jb/qrcode.html"
-    local params="?mode=${mode}&uuid=${uuid}&host=${host}&port=${port}&path=${path}"
-
-    if [[ "$mode" == "tunnel" && -n "$domain" ]]; then
-        params="${params}&domain=${domain}"
-        if [[ -n "$sni" ]]; then
-            params="${params}&sni=${sni}"
-        fi
-    fi
-
-    echo "${base_url}${params}"
-}
-
 # 信号处理
 cleanup() {
     log_info "收到退出信号，正在关闭服务..."
@@ -237,14 +214,10 @@ EOF
 
     # 8. 生成连接信息
     LINK="vless://${UUID}@${OPT_DOMAIN}:443?encryption=none&security=tls&type=ws&host=${DOMAIN}&path=/${WS_PATH}&sni=${DOMAIN}#Tunnel_${DOMAIN}"
-    QR_URL=$(generate_qr_url "tunnel" "$UUID" "$OPT_DOMAIN" "443" "/${WS_PATH}" "$DOMAIN" "$DOMAIN")
 
     echo ""
     echo -e "${GREEN}=== 部署成功 ===${PLAIN}"
     echo -e "${CYAN}${LINK}${PLAIN}"
-    echo ""
-    echo -e "${GREEN}二维码链接: ${PLAIN}${CYAN}${QR_URL}${PLAIN}"
-    echo -e "${YELLOW}提示: 在手机浏览器打开上方链接即可扫描二维码${PLAIN}"
     echo ""
 
     # 9. 监控进程

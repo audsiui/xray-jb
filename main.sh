@@ -19,6 +19,8 @@ if [[ ! -f "${SCRIPT_DIR}/lib/utils.sh" ]]; then
         "lib/args.sh"
         "core/install_direct.sh"
         "core/install_tunnel.sh"
+        "core/install_reality.sh"
+        "core/install_xhttp.sh"
         "core/uninstall.sh"
         "core/manage.sh"
         "core/update.sh"
@@ -45,6 +47,8 @@ source "${SCRIPT_DIR}/lib/args.sh"
 # 加载核心模块
 source "${SCRIPT_DIR}/core/install_direct.sh"
 source "${SCRIPT_DIR}/core/install_tunnel.sh"
+source "${SCRIPT_DIR}/core/install_reality.sh"
+source "${SCRIPT_DIR}/core/install_xhttp.sh"
 source "${SCRIPT_DIR}/core/uninstall.sh"
 source "${SCRIPT_DIR}/core/manage.sh"
 source "${SCRIPT_DIR}/core/update.sh"
@@ -63,6 +67,12 @@ if is_non_interactive; then
             ;;
         tunnel)
             run_tunnel_install_non_interactive
+            ;;
+        reality)
+            run_reality_install_non_interactive
+            ;;
+        xhttp)
+            run_xhttp_install_non_interactive
             ;;
         uninstall)
             run_uninstall
@@ -89,9 +99,11 @@ show_menu() {
     echo -e "------------------------------------------------"
     echo -e "  1. 安装 VLESS + WS (直连模式)"
     echo -e "  2. 安装 VLESS + WS + CF Tunnel (内网穿透)"
-    echo -e "  3. 服务管理"
-    echo -e "  4. 更新 Xray/cloudflared 版本"
-    echo -e "  5. 卸载并清除所有内容"
+    echo -e "  3. 安装 VLESS + REALITY (新型直连模式)"
+    echo -e "  4. 安装 VLESS + XHTTP (新型直连模式)"
+    echo -e "  5. 服务管理"
+    echo -e "  6. 更新 Xray/cloudflared 版本"
+    echo -e "  7. 卸载并清除所有内容"
     echo -e "  0. 退出"
     echo -e "------------------------------------------------"
 }
@@ -99,14 +111,16 @@ show_menu() {
 # 主菜单循环
 while true; do
     show_menu
-    read -p "请选择 [0-5]: " choice
+    read -p "请选择 [0-7]: " choice
 
     case $choice in
         1) run_direct_install; read -p "按回车键继续..." ;;
         2) run_tunnel_install; read -p "按回车键继续..." ;;
-        3) run_manage_menu; read -p "按回车键继续..." ;;
-        4) run_update; read -p "按回车键继续..." ;;
-        5) run_uninstall; read -p "按回车键继续..." ;;
+        3) run_reality_install; read -p "按回车键继续..." ;;
+        4) run_xhttp_install; read -p "按回车键继续..." ;;
+        5) run_manage_menu; read -p "按回车键继续..." ;;
+        6) run_update; read -p "按回车键继续..." ;;
+        7) run_uninstall; read -p "按回车键继续..." ;;
         0) exit 0 ;;
         *) log_err "无效选项"; sleep 1 ;;
     esac

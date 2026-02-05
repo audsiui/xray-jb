@@ -15,6 +15,56 @@ CONFIG_FILE="${WORK_DIR}/config.json"
 LOG_DIR="${WORK_DIR}/logs"
 MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10MB
 
+# 检查 Xray 服务是否存在
+has_xray_service() {
+    if command -v systemctl >/dev/null 2>&1; then
+        [[ -f "/etc/systemd/system/xray.service" ]]
+    elif [[ -d "/etc/init.d" ]]; then
+        [[ -f "/etc/init.d/xray" ]]
+    else
+        return 1
+    fi
+}
+
+# 生成 Xray 配置文件的 inbound 部分
+generate_config_header() {
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" <<'EOF'
+{
+  "log": { "loglevel": "warning", "access": "none" },
+  "inbounds": [],
+  "outbounds": [{ "protocol": "freedom" }]
+}
+EOF
+    fi
+}
+
+# 添加 inbound 到配置文件
+add_inbound_to_config() {
+    local inbound_json="$1"
+    local temp_file="${CONFIG_FILE}.tmp"
+    
+    # 如果配置文件不存在，创建基础结构
+    generate_config_header
+    
+    # 使用 jq 添加 inbound（如果 jq 可用）
+    if command -v jq >/dev/null 2>&1; then
+        jq --argjson inbound "$inbound_json" '.inbounds += [$inbound]' "$CONFIG_FILE" > "$temp_file" && mv "$temp_file" "$CONFIG_FILE"
+    else
+        # 降级方案：使用 sed 简单替换（仅适用于空 inbounds）
+        local inbounds_empty=$(grep -c '"inbounds": \[\]' "$CONFIG_FILE" 2>/dev/null || echo 0)
+        if [[ "$inbounds_empty" -gt 0 ]]; then
+            # 替换空的 inbounds
+            sed -i "s|\"inbounds\": \[\]|\"inbounds\": [$inbound_json]|" "$CONFIG_FILE"
+        else
+            # 在最后一个 inbound 后添加
+            sed -i "s|}|},${inbound_json}|" "$CONFIG_FILE"
+        fi
+    fi
+    
+    chmod 600 "$CONFIG_FILE"
+}
+
 check_root() {
     if [[ $EUID -ne 0 ]]; then
         echo -e "${RED}错误: 必须使用 root 用户运行此脚本！${PLAIN}"
@@ -309,65 +359,47 @@ clean_work_dir() {
 
 # 检测服务是否已安装
 check_existing_install() {
-    local mode="$1"  # "direct" 或 "tunnel"
+    local mode="$1"  # "direct" / "tunnel" / "reality"
     local existing=""
-    local conflict=""
 
-    # 检测直连模式服务
+    # 检测各种模式服务
     if command -v systemctl >/dev/null 2>&1; then
         [[ -f "/etc/systemd/system/xray-d.service" ]] && existing="direct"
         [[ -f "/etc/systemd/system/xray-t.service" ]] && existing="tunnel"
+        [[ -f "/etc/systemd/system/xray-r.service" ]] && existing="reality"
     elif [[ -d "/etc/init.d" ]]; then
         [[ -f "/etc/init.d/xray-d" ]] && existing="direct"
         [[ -f "/etc/init.d/xray-t" ]] && existing="tunnel"
+        [[ -f "/etc/init.d/xray-r" ]] && existing="reality"
     fi
 
-    # 判断冲突
-    if [[ -z "$existing" ]]; then
-        return 0
-    fi
-
+    # 判断是否为重复安装同一模式
     if [[ "$mode" == "$existing" ]]; then
         log_err "检测到已安装${mode}模式，无法重复安装"
         log_err "请先选择「卸载」后再安装"
         return 1
     fi
 
-    # 跨模式冲突
-    if [[ "$mode" == "direct" ]]; then
-        conflict="Tunnel"
-    else
-        conflict="直连"
-    fi
-
-    log_err "检测到已安装${existing}模式，与${conflict}模式无法共存"
-    log_err "请先选择「卸载」后再安装"
-    return 1
+    # 不同模式可以共存，直接返回成功
+    return 0
 }
 
-# 生成二维码网页链接
-generate_qr_url() {
-    local mode="$1"
-    local uuid="$2"
-    local host="$3"
-    local port="$4"
-    local path="$5"
-    local domain="${6:-}"  # tunnel mode 需要
-    local sni="${7:-$domain}"  # tunnel mode SNI
+# 获取所有已安装的模式
+get_installed_modes() {
+    local modes=""
 
-    # URL 编码 path
-    local encoded_path
-    encoded_path=$(echo "$path" | jq -sRr @uri 2>/dev/null || echo "$path")
-
-    local base_url="https://audsiui.github.io/xray-jb/qrcode.html"
-    local params="?mode=${mode}&uuid=${uuid}&host=${host}&port=${port}&path=${encoded_path}"
-
-    if [[ "$mode" == "tunnel" && -n "$domain" ]]; then
-        params="${params}&domain=${domain}"
-        if [[ -n "$sni" ]]; then
-            params="${params}&sni=${sni}"
-        fi
+    if command -v systemctl >/dev/null 2>&1; then
+        [[ -f "/etc/systemd/system/xray-d.service" ]] && modes="${modes}direct "
+        [[ -f "/etc/systemd/system/xray-t.service" ]] && modes="${modes}tunnel "
+        [[ -f "/etc/systemd/system/xray-r.service" ]] && modes="${modes}reality "
+        [[ -f "/etc/systemd/system/xray-x.service" ]] && modes="${modes}xhttp "
+    elif [[ -d "/etc/init.d" ]]; then
+        [[ -f "/etc/init.d/xray-d" ]] && modes="${modes}direct "
+        [[ -f "/etc/init.d/xray-t" ]] && modes="${modes}tunnel "
+        [[ -f "/etc/init.d/xray-r" ]] && modes="${modes}reality "
+        [[ -f "/etc/init.d/xray-x" ]] && modes="${modes}xhttp "
     fi
 
-    echo "${base_url}${params}"
+    echo "$modes"
 }
+

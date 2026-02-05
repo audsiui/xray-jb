@@ -22,9 +22,9 @@ Xray + Tunnel 工程化部署脚本
     bash main.sh [选项] [参数]
 
 安装模式:
-    -m, --mode <MODE>          安装模式: direct(直连), tunnel(CF隧道)
-    -p, --port <PORT>          端口号 (直连默认 8080, 隧道默认 10086)
-    -d, --domain <DOMAIN>      域名 (tunnel 模式必需)
+    -m, --mode <MODE>          安装模式: direct(直连), tunnel(CF隧道), reality(REALITY), xhttp(XHTTP)
+    -p, --port <PORT>          端口号 (直连默认 8080, 隧道默认 10086, REALITY默认 8443, XHTTP默认 8081)
+    -d, --domain <DOMAIN>      域名 (tunnel 模式必需, reality 模式可选用于伪装)
     -t, --token <TOKEN>        Cloudflare Tunnel Token (tunnel 模式必需)
     --opt-domain <DOMAIN>      优选域名 (tunnel 模式可选，默认 cf.tencentapp.cn)
 
@@ -52,6 +52,12 @@ Xray + Tunnel 工程化部署脚本
     # 非交互式隧道模式安装
     bash main.sh --mode tunnel --port 10086 --domain example.com --token xxxx
 
+    # 非交互式 REALITY 模式安装
+    bash main.sh --mode reality --port 8443 --domain www.microsoft.com
+
+    # 非交互式 XHTTP 模式安装
+    bash main.sh --mode xhttp --port 8081
+
     # 服务管理
     bash main.sh --manage --action status
     bash main.sh --manage --action restart
@@ -65,7 +71,7 @@ Xray + Tunnel 工程化部署脚本
     3. 停止服务            - 停止正在运行的服务
     4. 重启服务            - 重启服务
     5. 查看详细状态        - 显示 systemctl/rc-service 详细输出
-    6. 查看配置链接        - 显示 vless:// 链接和二维码网页链接
+    6. 查看配置链接        - 显示 vless:// 链接
 
 EOF
 }
@@ -176,6 +182,25 @@ validate_args() {
                 exit 1
             fi
             ;;
+        reality)
+            # REALITY 模式需要端口，域名可选（用于伪装/SNI）
+            if [[ -n "$ARG_PORT" ]] && ! validate_port "$ARG_PORT"; then
+                log_err "端口参数无效"
+                exit 1
+            fi
+            if [[ -n "$ARG_DOMAIN" ]] && ! validate_domain "$ARG_DOMAIN"; then
+                exit 1
+            fi
+            ;;
+        xhttp)
+            # XHTTP 模式只需要端口
+            if [[ -n "$ARG_PORT" ]]; then
+                if ! validate_port "$ARG_PORT"; then
+                    log_err "端口参数无效"
+                    exit 1
+                fi
+            fi
+            ;;
         uninstall)
             # 卸载模式不需要额外参数
             ;;
@@ -196,7 +221,7 @@ validate_args() {
             # 更新模式不需要额外参数
             ;;
         *)
-            log_err "无效的模式: $ARG_MODE (支持: direct, tunnel, uninstall, manage, update)"
+            log_err "无效的模式: $ARG_MODE (支持: direct, tunnel, reality, xhttp, uninstall, manage, update)"
             exit 1
             ;;
     esac
