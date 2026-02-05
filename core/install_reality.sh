@@ -154,8 +154,8 @@ _do_reality_install() {
         PRIVATE_KEY="MHg4ZTZjZTBkMi0wOWJiLTExZWYtYTI3NC0xMjM0NTY3ODkwYWJhYmNkZWYtMTIzNC0xMjNlLWE0NTYtNDI2NjE0MTc0MDAw"
         PUBLIC_KEY="0u9L2hfI-3gf4eOkT3rwdCw3mbn8CHw3yL3hCKf5xVw"
     else
-        PRIVATE_KEY=$(echo "$keypair" | grep -i "private.*key" | awk '{print $NF}')
-        PUBLIC_KEY=$(echo "$keypair" | grep -i "public.*key" | awk '{print $NF}')
+        PRIVATE_KEY=$(echo "$keypair" | grep "Private" | sed 's/Private key: //')
+        PUBLIC_KEY=$(echo "$keypair" | grep "Public" | sed 's/Public key: //')
     fi
 
     # 生成 shortId
@@ -163,8 +163,12 @@ _do_reality_install() {
 
     # 4. 生成 inbound JSON 并添加到统一配置
     local inbound_json="{ \"tag\": \"reality-${PORT}\", \"port\": ${PORT}, \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\", \"flow\": \"xtls-rprx-vision\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"tcp\", \"security\": \"reality\", \"realitySettings\": { \"show\": false, \"dest\": \"${DOMAIN}:443\", \"xver\": 0, \"serverNames\": [\"${DOMAIN}\"], \"privateKey\": \"${PRIVATE_KEY}\", \"shortIds\": [\"${SHORT_ID}\"] } }, \"sniffing\": { \"enabled\": true, \"destOverride\": [\"http\", \"tls\"] } }"
-    
-    add_inbound_to_config "$inbound_json"
+
+    add_inbound_to_config "$inbound_json" "reality" "${PORT}"
+
+    # 获取 Xray 启动参数
+    local xray_args
+    xray_args=$(get_xray_start_args)
     
     # 保存密钥信息（用于显示给用户）
     KEYS_FILE="${WORK_DIR}/.reality_keys"
@@ -184,7 +188,7 @@ EOF
         do_service_action "restart" "xray"
     else
         log_info "启动 Xray 服务..."
-        setup_service "xray" "${XRAY_BIN}" "run -c ${CONFIG_FILE}"
+        setup_service "xray" "${XRAY_BIN}" "${xray_args}"
     fi
 
     # 6. 验证服务启动

@@ -204,8 +204,12 @@ _do_tunnel_install() {
 
     # 3. 生成 inbound JSON 并添加到统一配置
     local inbound_json="{ \"tag\": \"tunnel-${PORT}\", \"port\": ${PORT}, \"listen\": \"0.0.0.0\", \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"ws\", \"wsSettings\": { \"path\": \"${PATH_STR}\" } } }"
-    
-    add_inbound_to_config "$inbound_json"
+
+    add_inbound_to_config "$inbound_json" "tunnel" "${PORT}"
+
+    # 获取 Xray 启动参数
+    local xray_args
+    xray_args=$(get_xray_start_args)
     
     # 创建 Token 配置文件（避免暴露在命令行）
     CF_TOKEN_FILE="${WORK_DIR}/.cf_token"
@@ -229,7 +233,7 @@ EOF
         do_service_action "restart" "xray"
     else
         log_info "启动 Xray 服务..."
-        setup_service "xray" "${XRAY_BIN}" "run -c ${CONFIG_FILE}"
+        setup_service "xray" "${XRAY_BIN}" "${xray_args}"
     fi
 
     # 使用环境变量传递 Token（更安全）

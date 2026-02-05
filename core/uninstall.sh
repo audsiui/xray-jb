@@ -27,6 +27,7 @@ run_uninstall() {
     rm -f "${WORK_DIR}/geoip.dat"
     rm -f "${WORK_DIR}/geosite.dat"
     rm -rf "${WORK_DIR}/logs"
+    rm -rf "${WORK_DIR}/confs"
 
     # 如果目录为空则删除
     rmdir "${WORK_DIR}" 2>/dev/null || true

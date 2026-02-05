@@ -12,6 +12,7 @@ WORK_DIR="/opt/xray-bundle"
 XRAY_BIN="${WORK_DIR}/xray"
 CF_BIN="${WORK_DIR}/cloudflared"
 CONFIG_FILE="${WORK_DIR}/config.json"
+CONFS_DIR="${WORK_DIR}/confs"
 LOG_DIR="${WORK_DIR}/logs"
 MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10MB
 
@@ -26,43 +27,101 @@ has_xray_service() {
     fi
 }
 
-# 生成 Xray 配置文件的 inbound 部分
-generate_config_header() {
-    if [[ ! -f "$CONFIG_FILE" ]]; then
-        cat > "$CONFIG_FILE" <<'EOF'
+# 初始化多文件配置目录
+init_confs_dir() {
+    if [[ ! -d "$CONFS_DIR" ]]; then
+        mkdir -p "$CONFS_DIR"
+        chmod 755 "$CONFS_DIR"
+    fi
+
+    # 创建基础配置文件（日志）
+    if [[ ! -f "${CONFS_DIR}/00_log.json" ]]; then
+        cat > "${CONFS_DIR}/00_log.json" <<'EOF'
 {
-  "log": { "loglevel": "warning", "access": "none" },
-  "inbounds": [],
+  "log": { "loglevel": "warning", "access": "none" }
+}
+EOF
+        chmod 600 "${CONFS_DIR}/00_log.json"
+    fi
+
+    # 创建基础 outbounds 文件
+    if [[ ! -f "${CONFS_DIR}/99_outbounds.json" ]]; then
+        cat > "${CONFS_DIR}/99_outbounds.json" <<'EOF'
+{
   "outbounds": [{ "protocol": "freedom" }]
 }
 EOF
+        chmod 600 "${CONFS_DIR}/99_outbounds.json"
     fi
 }
 
-# 添加 inbound 到配置文件
+# 添加 inbound 配置（创建单独的配置文件）
+# 参数：$1=inbound_json, $2=mode_name (如: ws, reality, xhttp), $3=port
 add_inbound_to_config() {
     local inbound_json="$1"
-    local temp_file="${CONFIG_FILE}.tmp"
-    
-    # 如果配置文件不存在，创建基础结构
-    generate_config_header
-    
-    # 使用 jq 添加 inbound（如果 jq 可用）
-    if command -v jq >/dev/null 2>&1; then
-        jq --argjson inbound "$inbound_json" '.inbounds += [$inbound]' "$CONFIG_FILE" > "$temp_file" && mv "$temp_file" "$CONFIG_FILE"
+    local mode_name="$2"
+    local port="$3"
+
+    # 初始化配置目录
+    init_confs_dir
+
+    # 生成配置文件名（使用前缀确保加载顺序）
+    # 10_ws_8080.json, 20_reality_8443.json, 30_xhttp_8081.json
+    local prefix
+    case "$mode_name" in
+        ws|direct) prefix="10" ;;
+        reality)   prefix="20" ;;
+        xhttp)     prefix="30" ;;
+        tunnel)    prefix="40" ;;
+        *)         prefix="50" ;;
+    esac
+
+    local conf_file="${CONFS_DIR}/${prefix}_${mode_name}_${port}.json"
+
+    # 创建单独的 inbound 配置文件
+    cat > "$conf_file" <<EOF
+{
+  "inbounds": [$inbound_json]
+}
+EOF
+    chmod 600 "$conf_file"
+
+    log_info "配置已保存到: ${conf_file}"
+}
+
+# 删除指定模式的 inbound 配置
+remove_inbound_config() {
+    local mode_name="$1"
+    local port="$2"
+
+    if [[ -z "$port" ]]; then
+        # 删除该模式的所有配置文件
+        for f in "${CONFS_DIR}"/*_${mode_name}_*.json 2>/dev/null; do
+            if [[ -f "$f" ]]; then
+                rm -f "$f"
+                log_info "已移除配置: ${f}"
+            fi
+        done
     else
-        # 降级方案：使用 sed 简单替换（仅适用于空 inbounds）
-        local inbounds_empty=$(grep -c '"inbounds": \[\]' "$CONFIG_FILE" 2>/dev/null || echo 0)
-        if [[ "$inbounds_empty" -gt 0 ]]; then
-            # 替换空的 inbounds
-            sed -i "s|\"inbounds\": \[\]|\"inbounds\": [$inbound_json]|" "$CONFIG_FILE"
-        else
-            # 在最后一个 inbound 后添加
-            sed -i "s|}|},${inbound_json}|" "$CONFIG_FILE"
-        fi
+        # 删除指定端口的配置文件
+        local conf_file="${CONFS_DIR}"/*_${mode_name}_${port}.json
+        for f in $conf_file 2>/dev/null; do
+            if [[ -f "$f" ]]; then
+                rm -f "$f"
+                log_info "已移除配置: ${f}"
+            fi
+        done
     fi
-    
-    chmod 600 "$CONFIG_FILE"
+}
+
+# 获取 Xray 启动参数（使用 confdir 模式）
+get_xray_start_args() {
+    if [[ -d "$CONFS_DIR" ]] && [[ -n "$(ls -A "$CONFS_DIR" 2>/dev/null)" ]]; then
+        echo "run -confdir ${CONFS_DIR}"
+    else
+        # 降级到单文件模式（兼容旧版本）
+        echo "run -c ${CONFIG_FILE}"
+    fi
 }
 
 check_root() {
@@ -316,8 +375,7 @@ rollback_install() {
     log_warn "正在回滚安装..."
 
     # 停止并移除可能创建的服务
-    remove_service "xray-d" >/dev/null 2>&1
-    remove_service "xray-t" >/dev/null 2>&1
+    remove_service "xray" >/dev/null 2>&1
     remove_service "cloudflared-t" >/dev/null 2>&1
 
     if command -v systemctl >/dev/null 2>&1; then
@@ -332,72 +390,90 @@ rollback_install() {
     log_info "回滚完成"
 }
 
-# 清理工作目录（保留指定文件）
+# 清理工作目录（保留指定文件和目录）
 clean_work_dir() {
-    local keep_files=("$@")
+    local keep_items=("$@")
 
     if [[ ! -d "$WORK_DIR" ]]; then
         return 0
     fi
 
-    # 删除目录下所有文件，除了指定的
+    # 删除目录下所有文件和目录，除了指定的
     for file in "$WORK_DIR"/*; do
-        if [[ -f "$file" ]]; then
-            local should_keep=false
-            for keep in "${keep_files[@]}"; do
-                if [[ "$(basename "$file")" == "$keep" ]]; then
-                    should_keep=true
-                    break
-                fi
-            done
-            if [[ "$should_keep" == "false" ]]; then
-                rm -f "$file"
+        local basename=$(basename "$file")
+        local should_keep=false
+
+        # 检查是否在保留列表中
+        for keep in "${keep_items[@]}"; do
+            if [[ "$basename" == "$keep" ]]; then
+                should_keep=true
+                break
             fi
+        done
+
+        # 始终保留 confs 目录（配置分片目录）
+        if [[ "$basename" == "confs" ]]; then
+            should_keep=true
+        fi
+
+        if [[ "$should_keep" == "false" ]]; then
+            rm -rf "$file"
         fi
     done
 }
 
+# 检测指定模式是否已安装（通过检查 confs 目录中的配置文件）
+check_mode_exists() {
+    local mode="$1"
+    local port="${2:-}"
+
+    if [[ -n "$port" ]]; then
+        # 检查特定端口的配置
+        for f in "${CONFS_DIR}"/*_${mode}_${port}.json 2>/dev/null; do
+            [[ -f "$f" ]] && return 0
+        done
+    else
+        # 检查该模式是否有任何配置
+        for f in "${CONFS_DIR}"/*_${mode}_*.json 2>/dev/null; do
+            [[ -f "$f" ]] && return 0
+        done
+    fi
+    return 1
+}
+
 # 检测服务是否已安装
 check_existing_install() {
-    local mode="$1"  # "direct" / "tunnel" / "reality"
-    local existing=""
+    local mode="$1"  # "direct" / "tunnel" / "reality" / "xhttp"
 
-    # 检测各种模式服务
-    if command -v systemctl >/dev/null 2>&1; then
-        [[ -f "/etc/systemd/system/xray-d.service" ]] && existing="direct"
-        [[ -f "/etc/systemd/system/xray-t.service" ]] && existing="tunnel"
-        [[ -f "/etc/systemd/system/xray-r.service" ]] && existing="reality"
-    elif [[ -d "/etc/init.d" ]]; then
-        [[ -f "/etc/init.d/xray-d" ]] && existing="direct"
-        [[ -f "/etc/init.d/xray-t" ]] && existing="tunnel"
-        [[ -f "/etc/init.d/xray-r" ]] && existing="reality"
-    fi
-
-    # 判断是否为重复安装同一模式
-    if [[ "$mode" == "$existing" ]]; then
-        log_err "检测到已安装${mode}模式，无法重复安装"
-        log_err "请先选择「卸载」后再安装"
+    # 检测是否已存在相同模式的配置（通过 confs 目录）
+    if check_mode_exists "$mode"; then
+        log_err "检测到已安装 ${mode} 模式，无法重复安装同模式"
+        log_err "如需重新安装，请先卸载或使用不同端口"
         return 1
     fi
 
-    # 不同模式可以共存，直接返回成功
+    # 允许不同模式共存
     return 0
 }
 
-# 获取所有已安装的模式
+# 获取所有已安装的模式（通过检查 confs 目录）
 get_installed_modes() {
     local modes=""
 
-    if command -v systemctl >/dev/null 2>&1; then
-        [[ -f "/etc/systemd/system/xray-d.service" ]] && modes="${modes}direct "
-        [[ -f "/etc/systemd/system/xray-t.service" ]] && modes="${modes}tunnel "
-        [[ -f "/etc/systemd/system/xray-r.service" ]] && modes="${modes}reality "
-        [[ -f "/etc/systemd/system/xray-x.service" ]] && modes="${modes}xhttp "
-    elif [[ -d "/etc/init.d" ]]; then
-        [[ -f "/etc/init.d/xray-d" ]] && modes="${modes}direct "
-        [[ -f "/etc/init.d/xray-t" ]] && modes="${modes}tunnel "
-        [[ -f "/etc/init.d/xray-r" ]] && modes="${modes}reality "
-        [[ -f "/etc/init.d/xray-x" ]] && modes="${modes}xhttp "
+    # 通过检查 confs 目录中的配置文件来确定已安装的模式
+    if [[ -d "$CONFS_DIR" ]]; then
+        for f in "${CONFS_DIR}"/*.json 2>/dev/null; do
+            [[ -f "$f" ]] || continue
+            local basename=$(basename "$f")
+            # 从文件名中提取模式（如 10_direct_8080.json -> direct）
+            if [[ "$basename" =~ ^[0-9]+_([a-z]+)_[0-9]+\.json$ ]]; then
+                local mode="${BASH_REMATCH[1]}"
+                # 避免重复添加
+                if [[ " $modes " != *" $mode "* ]]; then
+                    modes="${modes}${mode} "
+                fi
+            fi
+        done
     fi
 
     echo "$modes"

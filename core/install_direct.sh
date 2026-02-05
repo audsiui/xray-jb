@@ -108,8 +108,12 @@ _do_direct_install() {
 
     # 4. 生成 inbound JSON 并添加到统一配置
     local inbound_json="{ \"tag\": \"direct-${PORT}\", \"port\": ${PORT}, \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"ws\", \"wsSettings\": { \"path\": \"${PATH_STR}\" } } }"
-    
-    add_inbound_to_config "$inbound_json"
+
+    add_inbound_to_config "$inbound_json" "direct" "${PORT}"
+
+    # 获取 Xray 启动参数
+    local xray_args
+    xray_args=$(get_xray_start_args)
     
     # 保存直连模式信息
     DIRECT_INFO="${WORK_DIR}/.direct_info"
@@ -126,7 +130,7 @@ EOF
         do_service_action "restart" "xray"
     else
         log_info "启动 Xray 服务..."
-        setup_service "xray" "${XRAY_BIN}" "run -c ${CONFIG_FILE}"
+        setup_service "xray" "${XRAY_BIN}" "${xray_args}"
     fi
 
     # 6. 验证服务启动
