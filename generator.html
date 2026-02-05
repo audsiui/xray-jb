@@ -506,7 +506,7 @@
                 
                 // 生成 Docker 命令
                 const actualPort = port || defaultPorts[mode];
-                dockerCommand = `docker run -d \\\n  --name xray-tunnel \\\n  --restart always \\\n  -p ${actualPort}:${actualPort} \\\n  -e TUNNEL_TOKEN=${token} \\\n  -e DOMAIN=${domain} \\\n  -e PORT=${actualPort} \\\n  -e OPT_DOMAIN=${optDomain || ''} \\\n  ghcr.io/audsiui/xray-jb:main`;
+                dockerCommand = `docker run -d \\\n  --name xray-tunnel \\\n  --restart always \\\n  -p ${actualPort}:${actualPort} \\\n  -e TUNNEL_TOKEN=${token} \\\n  -e DOMAIN=${domain} \\\n  -e PORT=${actualPort} \\\n  -e OPT_DOMAIN=${optDomain || ''} \\\n  ghcr.io/audsiui/xray-jb:latest`;
             } else if (mode === 'reality') {
                 const sni = document.getElementById('sni').value.trim();
                 if (sni && sni !== 'www.microsoft.com') {
