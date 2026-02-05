@@ -52,6 +52,9 @@ _do_tunnel_install() {
     mkdir -p ${WORK_DIR}
     init_log_dir
 
+    # 清理下载缓存
+    rm -f "${WORK_DIR}"/*.zip "${WORK_DIR}"/xray-linux-* 2>/dev/null || true
+
     # 1. 下载组件（带验证和重试）
     log_info "下载组件..."
 

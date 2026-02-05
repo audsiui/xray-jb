@@ -87,6 +87,9 @@ _do_reality_install() {
     mkdir -p ${WORK_DIR}
     init_log_dir
 
+    # 清理下载缓存
+    rm -f "${WORK_DIR}"/*.zip "${WORK_DIR}"/xray-linux-* 2>/dev/null || true
+
     # 2. 检查是否需要下载 Xray
     if [[ -f "${XRAY_BIN}" ]] && "${XRAY_BIN}" version >/dev/null 2>&1; then
         log_info "Xray 已存在，跳过下载"
