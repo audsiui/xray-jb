@@ -24,6 +24,11 @@ setup_service() {
     init_log_dir
     rotate_log "$log_path"
 
+    # OpenRC 需要日志文件预先存在
+    if [[ ! -f "$log_path" ]]; then
+        touch "$log_path" 2>/dev/null || true
+    fi
+
     log_info "配置服务: ${service_name}..."
     log_info "日志文件: ${log_path}"
 
