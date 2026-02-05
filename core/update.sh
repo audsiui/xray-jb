@@ -69,16 +69,12 @@ update_xray() {
         return 0
     fi
 
-    # 停止服务
-    local mode
-    mode=$(get_current_mode)
-    if [[ -n "$mode" ]]; then
-        log_info "停止服务..."
-        if [[ "$mode" == "direct" ]]; then
-            do_service_action "stop" "xray-d"
-        else
-            do_service_action "stop" "xray-t"
-        fi
+    # 停止 Xray 服务
+    log_info "停止 Xray 服务..."
+    local has_service=false
+    if has_xray_service; then
+        do_service_action "stop" "xray"
+        has_service=true
     fi
 
     # 下载新版本
@@ -89,12 +85,9 @@ update_xray() {
     if ! download_file "$XRAY_DL" "$XRAY_ZIP"; then
         log_err "下载 Xray 失败"
         # 恢复服务
-        if [[ -n "$mode" ]]; then
-            if [[ "$mode" == "direct" ]]; then
-                do_service_action "start" "xray-d"
-            else
-                do_service_action "start" "xray-t"
-            fi
+        if [[ "$has_service" == "true" ]]; then
+            command -v systemctl >/dev/null 2>&1 && systemctl daemon-reload
+            do_service_action "start" "xray"
         fi
         return 1
     fi
@@ -114,12 +107,9 @@ update_xray() {
             mv "${XRAY_BIN}.bak" "$XRAY_BIN"
         fi
         # 恢复服务
-        if [[ -n "$mode" ]]; then
-            if [[ "$mode" == "direct" ]]; then
-                do_service_action "start" "xray-d"
-            else
-                do_service_action "start" "xray-t"
-            fi
+        if [[ "$has_service" == "true" ]]; then
+            command -v systemctl >/dev/null 2>&1 && systemctl daemon-reload
+            do_service_action "start" "xray"
         fi
         return 1
     fi
@@ -128,14 +118,11 @@ update_xray() {
     rm -f "$XRAY_ZIP"
     clean_work_dir "xray" "geoip.dat" "geosite.dat"
 
-    # 启动服务
-    if [[ -n "$mode" ]]; then
-        log_info "启动服务..."
-        if [[ "$mode" == "direct" ]]; then
-            do_service_action "start" "xray-d"
-        else
-            do_service_action "start" "xray-t"
-        fi
+    # 启动 Xray 服务
+    log_info "启动 Xray 服务..."
+    command -v systemctl >/dev/null 2>&1 && systemctl daemon-reload
+    if [[ "$has_service" == "true" ]]; then
+        do_service_action "start" "xray"
     fi
 
     log_info "Xray 更新完成"
@@ -200,10 +187,8 @@ update_cloudflared() {
 
 # 更新菜单
 run_update() {
-    local mode
-    mode=$(get_current_mode)
-
-    if [[ -z "$mode" ]]; then
+    # 检测是否有任何已安装的服务
+    if ! has_xray_service && [[ ! -f "/etc/systemd/system/cloudflared-t.service" ]] && [[ ! -f "/etc/init.d/cloudflared-t" ]]; then
         log_err "未检测到已安装的服务"
         return 1
     fi
@@ -258,10 +243,8 @@ run_update() {
 
 # 非交互式更新
 run_update_non_interactive() {
-    local mode
-    mode=$(get_current_mode)
-
-    if [[ -z "$mode" ]]; then
+    # 检测是否有任何已安装的服务
+    if ! has_xray_service && [[ ! -f "/etc/systemd/system/cloudflared-t.service" ]] && [[ ! -f "/etc/init.d/cloudflared-t" ]]; then
         log_err "未检测到已安装的服务"
         return 1
     fi

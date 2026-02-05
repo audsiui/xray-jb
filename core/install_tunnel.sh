@@ -202,24 +202,11 @@ _do_tunnel_install() {
     UUID=$(cat /proc/sys/kernel/random/uuid)
     PATH_STR="/$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1)"
 
-    # 3. 生成配置（监听 0.0.0.0）
-    cat > ${CONFIG_FILE} <<EOF
-{
-  "log": { "loglevel": "warning", "access": "none" },
-  "inbounds": [{
-    "port": ${PORT},
-    "listen": "0.0.0.0",
-    "protocol": "vless",
-    "settings": { "clients": [{ "id": "${UUID}" }], "decryption": "none" },
-    "streamSettings": { "network": "ws", "wsSettings": { "path": "${PATH_STR}" } }
-  }],
-  "outbounds": [{ "protocol": "freedom" }]
-}
-EOF
-
-    # 设置配置文件权限
-    chmod 600 ${CONFIG_FILE}
-
+    # 3. 生成 inbound JSON 并添加到统一配置
+    local inbound_json="{ \"tag\": \"tunnel-${PORT}\", \"port\": ${PORT}, \"listen\": \"0.0.0.0\", \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"ws\", \"wsSettings\": { \"path\": \"${PATH_STR}\" } } }"
+    
+    add_inbound_to_config "$inbound_json"
+    
     # 创建 Token 配置文件（避免暴露在命令行）
     CF_TOKEN_FILE="${WORK_DIR}/.cf_token"
     echo "$CF_TOKEN" > "$CF_TOKEN_FILE"
@@ -228,13 +215,22 @@ EOF
     # 保存域名信息（用于后续查看配置链接）
     DOMAIN_INFO_FILE="${WORK_DIR}/.domain_info"
     cat > "$DOMAIN_INFO_FILE" <<EOF
+PORT=${PORT}
+UUID=${UUID}
+PATH=${PATH_STR}
 DOMAIN=${DOMAIN}
 OPT_DOMAIN=${OPT_DOMAIN}
 EOF
     chmod 600 "$DOMAIN_INFO_FILE"
 
-    # 4. 启动双服务
-    setup_service "xray-t" "${XRAY_BIN}" "run -c ${CONFIG_FILE}"
+    # 4. 启动/重启 Xray 服务
+    if service_exists "xray"; then
+        log_info "重启 Xray 服务以应用新配置..."
+        do_service_action "restart" "xray"
+    else
+        log_info "启动 Xray 服务..."
+        setup_service "xray" "${XRAY_BIN}" "run -c ${CONFIG_FILE}"
+    fi
 
     # 使用环境变量传递 Token（更安全）
     cat > /tmp/cloudflared_token.sh <<EOF
@@ -247,7 +243,7 @@ EOF
 
     # 5. 验证服务启动
     log_info "验证服务启动状态..."
-    if ! verify_service_running "xray-t"; then
+    if ! verify_service_running "xray"; then
         log_err "Xray 服务启动失败"
         if ! is_non_interactive; then
             read -p "是否回滚并清理所有文件？[Y/n]: " rollback_choice
@@ -273,9 +269,5 @@ EOF
     echo -e "\n${GREEN}=== Tunnel 模式部署完成 ===${PLAIN}"
     echo -e "${CYAN}${LINK}${PLAIN}"
 
-    # 生成二维码网页链接
-    QR_URL=$(generate_qr_url "tunnel" "$UUID" "$OPT_DOMAIN" "443" "$PATH_STR" "$DOMAIN" "$DOMAIN")
-    echo -e "${GREEN}二维码链接: ${PLAIN}${CYAN}${QR_URL}${PLAIN}"
-    echo -e "${YELLOW}提示: 在手机浏览器打开上方链接即可扫描二维码${PLAIN}"
     echo ""
 }

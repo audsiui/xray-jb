@@ -24,7 +24,7 @@ docker run -d \
 
 ### 3. 获取连接信息
 
-查看容器日志获取 `vless://` 链接和二维码：
+查看容器日志获取 `vless://` 链接：
 
 ```bash
 docker logs xray-tunnel

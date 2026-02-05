@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # 非交互式安装入口
-run_direct_install_non_interactive() {
-    # 检测是否已安装
-    if ! check_existing_install "direct"; then
+run_xhttp_install_non_interactive() {
+    # 检测是否已安装 xhttp 模式
+    if ! check_existing_install "xhttp"; then
         exit 1
     fi
 
     # 使用命令行参数或默认值
-    PORT="${ARG_PORT:-8080}"
+    PORT="${ARG_PORT:-8081}"
 
     # 检查端口是否被占用（非交互模式下直接使用）
     if ! check_port_available "$PORT"; then
@@ -18,21 +18,21 @@ run_direct_install_non_interactive() {
         log_warn "非交互模式将强制使用此端口"
     fi
 
-    _do_direct_install
+    _do_xhttp_install
 }
 
 # 交互式安装入口
-run_direct_install() {
-    # 检测是否已安装
-    if ! check_existing_install "direct"; then
+run_xhttp_install() {
+    # 检测是否已安装 xhttp 模式
+    if ! check_existing_install "xhttp"; then
         return 1
     fi
 
-    _do_direct_install
+    _do_xhttp_install
 }
 
 # 实际安装逻辑
-_do_direct_install() {
+_do_xhttp_install() {
 
     # 1. 基础安装
     check_sys
@@ -71,16 +71,16 @@ _do_direct_install() {
 
     # 3. 配置参数（带验证）
     if is_non_interactive; then
-        # 非交互模式：端口已在 run_direct_install_non_interactive 中设置
+        # 非交互模式：端口已在 run_xhttp_install_non_interactive 中设置
         log_info "使用端口: ${PORT}"
     else
         # 交互模式：询问端口
         while true; do
-            read -p "设置端口 (默认 8080): " PORT_INPUT
+            read -p "设置端口 (默认 8081): " PORT_INPUT
             PORT_INPUT=$(trim "$PORT_INPUT")
 
             if [[ -z "$PORT_INPUT" ]]; then
-                PORT=8080
+                PORT=8081
             else
                 if ! validate_port "$PORT_INPUT"; then
                     continue
@@ -107,18 +107,18 @@ _do_direct_install() {
     PATH_STR="/$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1)"
 
     # 4. 生成 inbound JSON 并添加到统一配置
-    local inbound_json="{ \"tag\": \"direct-${PORT}\", \"port\": ${PORT}, \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"ws\", \"wsSettings\": { \"path\": \"${PATH_STR}\" } } }"
+    local inbound_json="{ \"tag\": \"xhttp-${PORT}\", \"port\": ${PORT}, \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"xhttp\", \"xhttpSettings\": { \"path\": \"${PATH_STR}\" } } }"
     
     add_inbound_to_config "$inbound_json"
     
-    # 保存直连模式信息
-    DIRECT_INFO="${WORK_DIR}/.direct_info"
-    cat > "$DIRECT_INFO" <<EOF
+    # 保存 xhttp 模式信息
+    XHTTP_INFO="${WORK_DIR}/.xhttp_info"
+    cat > "$XHTTP_INFO" <<EOF
 PORT=${PORT}
 UUID=${UUID}
 PATH=${PATH_STR}
 EOF
-    chmod 600 "$DIRECT_INFO"
+    chmod 600 "$XHTTP_INFO"
 
     # 5. 启动/重启服务
     if service_exists "xray"; then
@@ -145,9 +145,9 @@ EOF
 
     # 7. 输出结果
     PUBLIC_IP=$(get_public_ip)
-    LINK="vless://${UUID}@${PUBLIC_IP}:${PORT}?encryption=none&security=none&type=ws&path=${PATH_STR}#Direct_${PORT}"
+    LINK="vless://${UUID}@${PUBLIC_IP}:${PORT}?encryption=none&security=none&type=xhttp&path=${PATH_STR}#XHTTP_${PORT}"
 
-    echo -e "\n${GREEN}=== 直连模式部署完成 ===${PLAIN}"
+    echo -e "\n${GREEN}=== XHTTP 模式部署完成 ===${PLAIN}"
     echo -e "${CYAN}${LINK}${PLAIN}"
 
     echo ""

@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# 检查服务是否存在
+service_exists() {
+    local service_name="$1"
+    if command -v systemctl >/dev/null 2>&1; then
+        [[ -f "/etc/systemd/system/${service_name}.service" ]]
+    elif [[ -d "/etc/init.d" ]]; then
+        [[ -f "/etc/init.d/${service_name}" ]]
+    else
+        return 1
+    fi
+}
+
 # 参数: $1=服务名, $2=执行命令, $3=参数, $4=日志文件名(可选)
 setup_service() {
     local service_name=$1
