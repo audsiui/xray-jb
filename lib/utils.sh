@@ -96,7 +96,8 @@ remove_inbound_config() {
 
     if [[ -z "$port" ]]; then
         # 删除该模式的所有配置文件
-        for f in "${CONFS_DIR}"/*_${mode_name}_*.json 2>/dev/null; do
+        for f in "${CONFS_DIR}"/*_${mode_name}_*.json; do
+            [[ -e "$f" ]] || continue
             if [[ -f "$f" ]]; then
                 rm -f "$f"
                 log_info "已移除配置: ${f}"
@@ -104,8 +105,8 @@ remove_inbound_config() {
         done
     else
         # 删除指定端口的配置文件
-        local conf_file="${CONFS_DIR}"/*_${mode_name}_${port}.json
-        for f in $conf_file 2>/dev/null; do
+        for f in "${CONFS_DIR}"/*_${mode_name}_${port}.json; do
+            [[ -e "$f" ]] || continue
             if [[ -f "$f" ]]; then
                 rm -f "$f"
                 log_info "已移除配置: ${f}"
@@ -429,12 +430,14 @@ check_mode_exists() {
 
     if [[ -n "$port" ]]; then
         # 检查特定端口的配置
-        for f in "${CONFS_DIR}"/*_${mode}_${port}.json 2>/dev/null; do
+        for f in "${CONFS_DIR}"/*_${mode}_${port}.json; do
+            [[ -e "$f" ]] || continue
             [[ -f "$f" ]] && return 0
         done
     else
         # 检查该模式是否有任何配置
-        for f in "${CONFS_DIR}"/*_${mode}_*.json 2>/dev/null; do
+        for f in "${CONFS_DIR}"/*_${mode}_*.json; do
+            [[ -e "$f" ]] || continue
             [[ -f "$f" ]] && return 0
         done
     fi
@@ -462,7 +465,8 @@ get_installed_modes() {
 
     # 通过检查 confs 目录中的配置文件来确定已安装的模式
     if [[ -d "$CONFS_DIR" ]]; then
-        for f in "${CONFS_DIR}"/*.json 2>/dev/null; do
+        for f in "${CONFS_DIR}"/*.json; do
+            [[ -e "$f" ]] || continue
             [[ -f "$f" ]] || continue
             local basename=$(basename "$f")
             # 从文件名中提取模式（如 10_direct_8080.json -> direct）
