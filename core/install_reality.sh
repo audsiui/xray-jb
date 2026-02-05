@@ -154,8 +154,8 @@ _do_reality_install() {
         PRIVATE_KEY="MHg4ZTZjZTBkMi0wOWJiLTExZWYtYTI3NC0xMjM0NTY3ODkwYWJhYmNkZWYtMTIzNC0xMjNlLWE0NTYtNDI2NjE0MTc0MDAw"
         PUBLIC_KEY="0u9L2hfI-3gf4eOkT3rwdCw3mbn8CHw3yL3hCKf5xVw"
     else
-        PRIVATE_KEY=$(echo "$keypair" | grep "PrivateKey" | awk '{print $3}')
-        PUBLIC_KEY=$(echo "$keypair" | grep "PublicKey" | awk '{print $3}')
+        PRIVATE_KEY=$(echo "$keypair" | grep -i "private.*key" | awk '{print $NF}')
+        PUBLIC_KEY=$(echo "$keypair" | grep -i "public.*key" | awk '{print $NF}')
     fi
 
     # 生成 shortId
