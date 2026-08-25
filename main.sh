@@ -13,6 +13,7 @@ if [[ ! -f "${SCRIPT_DIR}/lib/utils.sh" ]]; then
 
     # 下载所有必需文件
     FILES=(
+        "main.sh"
         "lib/utils.sh"
         "lib/system.sh"
         "lib/service.sh"
@@ -28,7 +29,7 @@ if [[ ! -f "${SCRIPT_DIR}/lib/utils.sh" ]]; then
 
     for file in "${FILES[@]}"; do
         mkdir -p "$TMP_DIR/$(dirname "$file")"
-        if ! curl -sL "${REPO_URL}/${file}" -o "$TMP_DIR/$file"; then
+        if ! curl -sfL "${REPO_URL}/${file}" -o "$TMP_DIR/$file"; then
             echo "下载失败: $file"
             rm -rf "$TMP_DIR"
             exit 1
