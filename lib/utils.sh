@@ -395,36 +395,20 @@ rollback_install() {
     log_info "回滚完成"
 }
 
-# 清理工作目录（保留指定文件和目录）
+# 清理下载/解压残留文件
+# 黑名单式清理：只删除已知残留物，绝不触碰 confs/nodes/logs/scripts 等数据目录。
+# （旧版白名单式实现曾误删 nodes/scripts，导致多节点注册表与 xj 命令失效）
 clean_work_dir() {
-    local keep_items=("$@")
-
     if [[ ! -d "$WORK_DIR" ]]; then
         return 0
     fi
 
-    # 删除目录下所有文件和目录，除了指定的
-    for file in "$WORK_DIR"/*; do
-        local basename=$(basename "$file")
-        local should_keep=false
-
-        # 检查是否在保留列表中
-        for keep in "${keep_items[@]}"; do
-            if [[ "$basename" == "$keep" ]]; then
-                should_keep=true
-                break
-            fi
-        done
-
-        # 始终保留 confs 目录（配置分片目录）
-        if [[ "$basename" == "confs" ]]; then
-            should_keep=true
-        fi
-
-        if [[ "$should_keep" == "false" ]]; then
-            rm -rf "$file"
-        fi
-    done
+    rm -rf \
+        "${WORK_DIR}"/*.zip \
+        "${WORK_DIR}"/xray-linux-* \
+        "${WORK_DIR}/README.md" \
+        "${WORK_DIR}/LICENSE" \
+        2>/dev/null || true
 }
 
 # 检测指定模式是否已安装（通过检查 confs 目录中的配置文件）
@@ -532,30 +516,29 @@ list_node_files() {
     done | sort
 }
 
-# 首次运行后持久化脚本并创建 xj 快捷命令
+# 首次运行后持久化脚本并创建 xj 快捷命令（每次运行都同步，自愈式）
 ensure_xj_command() {
     local script_dest="${WORK_DIR}/scripts"
 
-    # 同步脚本文件到持久化目录（内容变化时才覆盖）
-    if [[ -d "$script_dest" ]] && \
-       cmp -s "${SCRIPT_DIR}/main.sh" "${script_dest}/main.sh" && \
-       diff -rq "${SCRIPT_DIR}/lib" "${script_dest}/lib" >/dev/null 2>&1 && \
-       diff -rq "${SCRIPT_DIR}/core" "${script_dest}/core" >/dev/null 2>&1; then
-        : # 无变化
-    else
+    # 每次运行都重新同步脚本文件（体积小，开销可忽略；
+    # 同时可修复被旧版本 clean_work_dir 误删的情况）
+    if [[ -d "${SCRIPT_DIR}/lib" && -d "${SCRIPT_DIR}/core" ]]; then
         mkdir -p "$script_dest"
-        cp -f "${SCRIPT_DIR}/main.sh" "$script_dest/" 2>/dev/null || true
+        cp -f "${SCRIPT_DIR}/main.sh" "$script_dest/"
         rm -rf "${script_dest}/lib" "${script_dest}/core"
-        cp -rf "${SCRIPT_DIR}/lib" "${SCRIPT_DIR}/core" "$script_dest/" 2>/dev/null || true
-        log_info "脚本已安装到: ${script_dest}"
+        cp -rf "${SCRIPT_DIR}/lib" "${SCRIPT_DIR}/core" "$script_dest/"
     fi
 
-    # 创建 xj 快捷命令
-    local xj_bin="/usr/local/bin/xj"
-    if [[ ! -x "$xj_bin" ]] || ! grep -qF "${script_dest}/main.sh" "$xj_bin" 2>/dev/null; then
-        printf '#!/bin/bash\nexec bash %s/main.sh "$@"\n' "${script_dest}" > "$xj_bin"
-        chmod +x "$xj_bin"
-        log_info "快捷命令已创建: 直接输入 ${GREEN}xj${PLAIN} 即可打开管理菜单"
+    # 仅当脚本副本确实存在时才创建/校验 xj 命令
+    if [[ -f "${script_dest}/main.sh" ]]; then
+        local xj_bin="/usr/local/bin/xj"
+        if [[ ! -x "$xj_bin" ]] || ! grep -qF "${script_dest}/main.sh" "$xj_bin" 2>/dev/null; then
+            printf '#!/bin/bash\nexec bash %s/main.sh "$@"\n' "${script_dest}" > "$xj_bin"
+            chmod +x "$xj_bin"
+            log_info "快捷命令已创建: 直接输入 ${GREEN}xj${PLAIN} 即可打开管理菜单"
+        fi
+    else
+        log_warn "脚本持久化失败，xj 命令本次未更新"
     fi
 }
 

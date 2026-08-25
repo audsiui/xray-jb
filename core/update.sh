@@ -111,7 +111,7 @@ update_xray() {
 
     chmod +x "$XRAY_BIN"
     rm -f "$XRAY_ZIP"
-    clean_work_dir "xray" "geoip.dat" "geosite.dat"
+    clean_work_dir
 
     # 启动 Xray 服务
     log_info "启动 Xray 服务..."

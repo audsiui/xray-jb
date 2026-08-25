@@ -75,7 +75,7 @@ _do_xhttp_install() {
 
         # 清理 ZIP 文件和其他临时文件
         rm -f "$XRAY_ZIP"
-        clean_work_dir "xray" "geoip.dat" "geosite.dat"
+        clean_work_dir
     fi
 
     # 3. 配置参数（带验证）
