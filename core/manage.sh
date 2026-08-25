@@ -1,12 +1,14 @@
 #!/bin/bash
 
-# 获取已配置的入站模式列表
+# 获取已配置的入站模式列表（基于节点注册表，支持同模式多节点）
 get_configured_modes() {
-    local modes=""
-    [[ -f "${WORK_DIR}/.direct_info" ]] && modes="${modes}direct "
-    [[ -f "${WORK_DIR}/.domain_info" ]] && modes="${modes}tunnel "
-    [[ -f "${WORK_DIR}/.reality_keys" ]] && modes="${modes}reality "
-    [[ -f "${WORK_DIR}/.xhttp_info" ]] && modes="${modes}xhttp "
+    local modes="" f mode
+    for f in $(list_node_files); do
+        mode=$(grep "^MODE=" "$f" 2>/dev/null | cut -d'=' -f2)
+        if [[ -n "$mode" && " $modes " != *" $mode "* ]]; then
+            modes="${modes}${mode} "
+        fi
+    done
     echo "$modes"
 }
 
@@ -42,39 +44,6 @@ get_service_status() {
     fi
 
     echo "$status"
-}
-
-# 获取配置信息（根据服务名获取对应配置）
-get_config_info() {
-    local service_name="$1"
-    local config_file=""
-
-    case "$service_name" in
-        xray-d) config_file="${WORK_DIR}/config-direct.json" ;;
-        xray-t) config_file="${WORK_DIR}/config-tunnel.json" ;;
-        xray-r) config_file="${WORK_DIR}/config-reality.json" ;;
-        *) return ;;
-    esac
-
-    if [[ ! -f "$config_file" ]]; then
-        return
-    fi
-
-    # 解析 JSON 配置（使用 sed 而非 grep -P 以兼容更多系统）
-    local port uuid path
-
-    # 提取 port: "port": 数字,
-    port=$(sed -nE 's/.*"port"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$config_file" | head -1)
-
-    # 提取 uuid: "id": "uuid-string"
-    uuid=$(sed -nE 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$config_file" | head -1)
-
-    # 提取 path: "path": "/path-string" (仅 WS 模式有)
-    path=$(sed -nE 's/.*"path"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$config_file" | head -1)
-
-    echo "    端口: ${port:-未知}"
-    echo "    UUID: ${uuid:-未知}"
-    [[ -n "$path" ]] && echo "    路径: ${path}"
 }
 
 # 显示详细状态（单服务多模式）
@@ -246,83 +215,81 @@ interactive_service_action() {
     read -p "按回车键返回..."
 }
 
-# 查看配置链接（支持多模式显示）
+# 查看配置链接（遍历节点注册表，展示全部节点）
 show_config_link() {
-    local found_config=false
+    local found_config=false f mode
 
-    # 检测并显示所有已安装模式的配置
-    [[ -f "${WORK_DIR}/.direct_info" ]] && { show_direct_config; found_config=true; }
-    [[ -f "${WORK_DIR}/.domain_info" ]] && { show_tunnel_config; found_config=true; }
-    [[ -f "${WORK_DIR}/.reality_keys" ]] && { show_reality_config; found_config=true; }
-    [[ -f "${WORK_DIR}/.xhttp_info" ]] && { show_xhttp_config; found_config=true; }
+    for f in $(list_node_files); do
+        mode=$(grep "^MODE=" "$f" 2>/dev/null | cut -d'=' -f2)
+        case "$mode" in
+            direct)  show_direct_config "$f"; found_config=true ;;
+            tunnel)  show_tunnel_config "$f"; found_config=true ;;
+            reality) show_reality_config "$f"; found_config=true ;;
+            xhttp)   show_xhttp_config "$f"; found_config=true ;;
+        esac
+    done
 
     if [[ "$found_config" == "false" ]]; then
-        log_err "未检测到已安装的服务"
+        log_err "未检测到任何节点，请先添加节点"
         return 1
     fi
 }
 
-# 显示直连模式配置
+# 显示直连节点配置（参数: 节点信息文件）
 show_direct_config() {
-    local direct_config="${WORK_DIR}/config-direct.json"
-    if [[ -f "$direct_config" ]]; then
+    local info_file="$1"
+    if [[ -f "$info_file" ]]; then
         local port uuid path public_ip
-        port=$(sed -nE 's/.*"port"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$direct_config" | head -1)
-        uuid=$(sed -nE 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$direct_config" | head -1)
-        path=$(sed -nE 's/.*"path"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$direct_config" | head -1)
+        port=$(grep "^PORT=" "$info_file" | cut -d'=' -f2)
+        uuid=$(grep "^UUID=" "$info_file" | cut -d'=' -f2)
+        path=$(grep "^PATH=" "$info_file" | cut -d'=' -f2)
 
         if [[ -n "$uuid" && -n "$port" && -n "$path" ]]; then
             public_ip=$(get_public_ip)
             local link="vless://${uuid}@${public_ip}:${port}?encryption=none&security=none&type=ws&path=${path}#Direct_${port}"
-            echo -e "\n${GREEN}=== 直连模式配置 ===${PLAIN}"
+            echo -e "\n${GREEN}=== 直连节点 [端口 ${port}] ===${PLAIN}"
             echo -e "${CYAN}${link}${PLAIN}"
         fi
     fi
 }
 
-# 显示隧道模式配置
+# 显示隧道节点配置（参数: 节点信息文件）
 show_tunnel_config() {
-    local tunnel_config="${WORK_DIR}/config-tunnel.json"
-    if [[ -f "$tunnel_config" ]]; then
-        local port uuid path
-        port=$(sed -nE 's/.*"port"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$tunnel_config" | head -1)
-        uuid=$(sed -nE 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$tunnel_config" | head -1)
-        path=$(sed -nE 's/.*"path"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$tunnel_config" | head -1)
-
-        local domain_info_file="${WORK_DIR}/.domain_info"
-        local domain opt_domain
-
-        if [[ -f "$domain_info_file" ]]; then
-            domain=$(grep "^DOMAIN=" "$domain_info_file" 2>/dev/null | cut -d'=' -f2)
-            opt_domain=$(grep "^OPT_DOMAIN=" "$domain_info_file" 2>/dev/null | cut -d'=' -f2)
-        fi
+    local info_file="$1"
+    if [[ -f "$info_file" ]]; then
+        local port uuid path domain opt_domain
+        port=$(grep "^PORT=" "$info_file" | cut -d'=' -f2)
+        uuid=$(grep "^UUID=" "$info_file" | cut -d'=' -f2)
+        path=$(grep "^PATH=" "$info_file" | cut -d'=' -f2)
+        domain=$(grep "^DOMAIN=" "$info_file" | cut -d'=' -f2)
+        opt_domain=$(grep "^OPT_DOMAIN=" "$info_file" | cut -d'=' -f2)
 
         if [[ -n "$domain" && -n "$opt_domain" && -n "$uuid" && -n "$path" ]]; then
-            local link="vless://${uuid}@${opt_domain}:443?encryption=none&security=tls&type=ws&host=${domain}&path=${path}&sni=${domain}#Tunnel_${domain}"
-            echo -e "\n${GREEN}=== 隧道模式配置 ===${PLAIN}"
+            local link="vless://${uuid}@${opt_domain}:443?encryption=none&security=tls&type=ws&host=${domain}&path=${path}&sni=${domain}#Tunnel_${domain}_${port}"
+            echo -e "\n${GREEN}=== 隧道节点 [端口 ${port}] ===${PLAIN}"
             echo -e "${CYAN}${link}${PLAIN}"
         fi
     fi
 }
 
-# 显示 REALITY 模式配置
+# 显示 REALITY 节点配置（参数: 节点信息文件）
 show_reality_config() {
-    local keys_file="${WORK_DIR}/.reality_keys"
+    local info_file="$1"
 
-    if [[ -f "$keys_file" ]]; then
-        local port uuid domain public_key short_id public_ip
-        port=$(grep "^PORT=" "$keys_file" 2>/dev/null | cut -d'=' -f2)
-        uuid=$(grep "^UUID=" "$keys_file" 2>/dev/null | cut -d'=' -f2)
-        domain=$(grep "^DOMAIN=" "$keys_file" 2>/dev/null | cut -d'=' -f2)
-        public_key=$(grep "^PUBLIC_KEY=" "$keys_file" 2>/dev/null | cut -d'=' -f2)
-        short_id=$(grep "^SHORT_ID=" "$keys_file" 2>/dev/null | cut -d'=' -f2)
+    if [[ -f "$info_file" ]]; then
+        local port uuid domain public_key short_id public_ip private_key
+        port=$(grep "^PORT=" "$info_file" 2>/dev/null | cut -d'=' -f2)
+        uuid=$(grep "^UUID=" "$info_file" 2>/dev/null | cut -d'=' -f2)
+        domain=$(grep "^DOMAIN=" "$info_file" 2>/dev/null | cut -d'=' -f2)
+        public_key=$(grep "^PUBLIC_KEY=" "$info_file" 2>/dev/null | cut -d'=' -f2)
+        short_id=$(grep "^SHORT_ID=" "$info_file" 2>/dev/null | cut -d'=' -f2)
 
         if [[ -n "$uuid" && -n "$port" && -n "$public_key" && -n "$short_id" ]]; then
             public_ip=$(get_public_ip)
             # REALITY 链接格式
             local link="vless://${uuid}@${public_ip}:${port}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${domain}&fp=chrome&pbk=${public_key}&sid=${short_id}&type=tcp#REALITY_${port}"
 
-            echo -e "\n${GREEN}=== REALITY 模式配置 ===${PLAIN}"
+            echo -e "\n${GREEN}=== REALITY 节点 [端口 ${port}] ===${PLAIN}"
             echo -e "${CYAN}${link}${PLAIN}"
             echo ""
             echo -e "${GREEN}配置详情:${PLAIN}"
@@ -340,21 +307,21 @@ show_reality_config() {
     fi
 }
 
-# 显示 XHTTP 模式配置
+# 显示 XHTTP 节点配置（参数: 节点信息文件）
 show_xhttp_config() {
-    local xhttp_info="${WORK_DIR}/.xhttp_info"
+    local info_file="$1"
 
-    if [[ -f "$xhttp_info" ]]; then
+    if [[ -f "$info_file" ]]; then
         local port uuid path public_ip
-        port=$(grep "^PORT=" "$xhttp_info" 2>/dev/null | cut -d'=' -f2)
-        uuid=$(grep "^UUID=" "$xhttp_info" 2>/dev/null | cut -d'=' -f2)
-        path=$(grep "^PATH=" "$xhttp_info" 2>/dev/null | cut -d'=' -f2)
+        port=$(grep "^PORT=" "$info_file" 2>/dev/null | cut -d'=' -f2)
+        uuid=$(grep "^UUID=" "$info_file" 2>/dev/null | cut -d'=' -f2)
+        path=$(grep "^PATH=" "$info_file" 2>/dev/null | cut -d'=' -f2)
 
         if [[ -n "$uuid" && -n "$port" && -n "$path" ]]; then
             public_ip=$(get_public_ip)
             local link="vless://${uuid}@${public_ip}:${port}?encryption=none&security=none&type=xhttp&path=${path}#XHTTP_${port}"
 
-            echo -e "\n${GREEN}=== XHTTP 模式配置 ===${PLAIN}"
+            echo -e "\n${GREEN}=== XHTTP 节点 [端口 ${port}] ===${PLAIN}"
             echo -e "${CYAN}${link}${PLAIN}"
             echo ""
             echo -e "${GREEN}配置详情:${PLAIN}"
@@ -365,6 +332,135 @@ show_xhttp_config() {
             echo -e "  路径: ${CYAN}${path}${PLAIN}"
         fi
     fi
+}
+
+# 显示单个节点详情（参数: 节点信息文件）
+show_single_node() {
+    local info_file="$1"
+    local mode
+    mode=$(grep "^MODE=" "$info_file" 2>/dev/null | cut -d'=' -f2)
+    case "$mode" in
+        direct)  show_direct_config "$info_file" ;;
+        tunnel)  show_tunnel_config "$info_file" ;;
+        reality) show_reality_config "$info_file" ;;
+        xhttp)   show_xhttp_config "$info_file" ;;
+        *) log_err "未知节点类型: ${mode}" ;;
+    esac
+}
+
+# 删除节点（移除配置与注册信息，重启服务）
+delete_node_by_file() {
+    local info_file="$1"
+    local mode port
+    mode=$(grep "^MODE=" "$info_file" 2>/dev/null | cut -d'=' -f2)
+    port=$(grep "^PORT=" "$info_file" 2>/dev/null | cut -d'=' -f2)
+
+    if [[ -z "$mode" || -z "$port" ]]; then
+        log_err "节点信息文件损坏: ${info_file}"
+        return 1
+    fi
+
+    echo ""
+    echo -e "将删除节点: ${YELLOW}[${mode}] 端口 ${port}${PLAIN}"
+    read -p "确认删除？[y/N]: " confirm
+    confirm=$(trim "$confirm")
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        log_info "已取消删除"
+        return 0
+    fi
+
+    remove_inbound_config "$mode" "$port"
+    remove_node_info "$mode" "$port"
+
+    # 重启 Xray 应用配置
+    if service_exists "xray"; then
+        do_service_action "restart" "xray"
+        if verify_service_running "xray"; then
+            log_info "节点已删除，Xray 重启成功"
+        fi
+    else
+        log_warn "Xray 服务未安装，仅清理了本地配置"
+    fi
+
+    # 删除最后一个隧道节点时提示 cloudflared 状态
+    if [[ "$mode" == "tunnel" ]] && [[ -z "$(list_node_files tunnel)" ]]; then
+        log_warn "已无隧道节点；cloudflared 服务仍在运行，如需彻底清理请使用卸载功能"
+    fi
+}
+
+# 节点管理菜单（查看/删除节点，支持同模式多节点）
+run_node_menu() {
+    while true; do
+        clear
+        echo -e "------------------------------------------------"
+        echo -e "${GREEN}  节点管理${PLAIN}"
+        echo -e "------------------------------------------------"
+
+        local files=()
+        local f
+        while IFS= read -r f; do
+            [[ -n "$f" ]] && files+=("$f")
+        done < <(list_node_files)
+
+        if [[ ${#files[@]} -eq 0 ]]; then
+            log_warn "当前没有已添加的节点，请先在主菜单添加"
+            echo ""
+            read -p "按回车键返回..."
+            return 0
+        fi
+
+        echo -e "  共有 ${GREEN}${#files[@]}${PLAIN} 个节点:\n"
+        local i=1 mode port uuid
+        for f in "${files[@]}"; do
+            mode=$(grep "^MODE=" "$f" 2>/dev/null | cut -d'=' -f2)
+            port=$(grep "^PORT=" "$f" 2>/dev/null | cut -d'=' -f2)
+            uuid=$(grep "^UUID=" "$f" 2>/dev/null | cut -d'=' -f2)
+            printf "  %2d. ${CYAN}%-9s${PLAIN} 端口 %-6s UUID: %s...\n" "$i" "[${mode}]" "${port}" "${uuid:0:13}"
+            ((i++))
+        done
+        echo ""
+        echo -e "  输入序号查看节点详情"
+        echo -e "  l. 查看全部节点链接"
+        echo -e "  d. 删除节点"
+        echo -e "  0. 返回主菜单"
+        echo -e "------------------------------------------------"
+
+        read -p "请选择 [1-${#files[@]}/l/d/0]: " choice
+
+        case "$choice" in
+            0)
+                return 0
+                ;;
+            l|L)
+                clear
+                echo -e "\n${GREEN}=== 全部节点链接 ===${PLAIN}\n"
+                show_config_link
+                echo ""
+                read -p "按回车键返回..."
+                ;;
+            d|D)
+                read -p "请输入要删除的节点序号 [1-${#files[@]}]: " idx
+                if [[ ! "$idx" =~ ^[0-9]+$ ]] || (( idx < 1 || idx > ${#files[@]} )); then
+                    log_err "无效序号"
+                    sleep 1
+                    continue
+                fi
+                delete_node_by_file "${files[$((idx - 1))]}"
+                read -p "按回车键返回..."
+                ;;
+            *)
+                if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#files[@]} )); then
+                    clear
+                    show_single_node "${files[$((choice - 1))]}"
+                    echo ""
+                    read -p "按回车键返回..."
+                else
+                    log_err "无效选项"
+                    sleep 1
+                fi
+                ;;
+        esac
+    done
 }
 
 # 服务管理菜单
@@ -379,11 +475,12 @@ run_manage_menu() {
         echo -e "  3. 停止服务"
         echo -e "  4. 重启服务"
         echo -e "  5. 查看详细状态"
-        echo -e "  6. 查看配置链接"
+        echo -e "  6. 节点管理（查看/删除节点）"
+        echo -e "  7. 查看全部节点链接"
         echo -e "  0. 返回主菜单"
         echo -e "------------------------------------------------"
 
-        read -p "请选择 [0-6]: " choice
+        read -p "请选择 [0-7]: " choice
 
         case $choice in
             1)
@@ -404,8 +501,11 @@ run_manage_menu() {
                 interactive_service_action "status"
                 ;;
             6)
+                run_node_menu
+                ;;
+            7)
                 clear
-                echo -e "\n${GREEN}=== 配置链接 ===${PLAIN}\n"
+                echo -e "\n${GREEN}=== 全部节点链接 ===${PLAIN}\n"
                 show_config_link
                 echo ""
                 read -p "按回车键返回..."

@@ -59,8 +59,9 @@ _do_tunnel_install() {
     log_info "下载组件..."
 
     # 下载 Xray（如果不存在）
-    if [[ -f "${XRAY_BIN}" ]] && "${XRAY_BIN}" version >/dev/null 2>&1; then
-        log_info "Xray 已存在，跳过下载"
+    # 已安装的 Xray 必须是固定版本，否则重新下载（密钥解析依赖该版本输出格式）
+    if [[ -f "${XRAY_BIN}" ]] && "${XRAY_BIN}" version 2>/dev/null | grep -q "Xray ${XRAY_VERSION} "; then
+        log_info "Xray v${XRAY_VERSION} 已存在，跳过下载"
     else
         XRAY_ZIP="${WORK_DIR}/xray.zip"
         if ! download_file "$XRAY_DL" "$XRAY_ZIP"; then
@@ -205,6 +206,11 @@ _do_tunnel_install() {
         fi
     fi
 
+    # 同模式同端口的节点不允许重复添加
+    if ! check_existing_install "tunnel" "${PORT}"; then
+        return 1
+    fi
+
     UUID=$(cat /proc/sys/kernel/random/uuid)
     PATH_STR="/$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1)"
 
@@ -217,21 +223,13 @@ _do_tunnel_install() {
     local xray_args
     xray_args=$(get_xray_start_args)
     
-    # 创建 Token 配置文件（避免暴露在命令行）
+    # 创建 Token 配置文件（避免暴露在命令行；多节点共用同一个 Tunnel）
     CF_TOKEN_FILE="${WORK_DIR}/.cf_token"
     echo "$CF_TOKEN" > "$CF_TOKEN_FILE"
     chmod 600 "$CF_TOKEN_FILE"
 
-    # 保存域名信息（用于后续查看配置链接）
-    DOMAIN_INFO_FILE="${WORK_DIR}/.domain_info"
-    cat > "$DOMAIN_INFO_FILE" <<EOF
-PORT=${PORT}
-UUID=${UUID}
-PATH=${PATH_STR}
-DOMAIN=${DOMAIN}
-OPT_DOMAIN=${OPT_DOMAIN}
-EOF
-    chmod 600 "$DOMAIN_INFO_FILE"
+    # 保存节点信息到注册表（支持同模式多节点）
+    save_node_info "tunnel" "${PORT}"
 
     # 4. 启动/重启 Xray 服务
     if service_exists "xray"; then

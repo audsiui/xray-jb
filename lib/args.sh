@@ -33,7 +33,7 @@ Xray + Tunnel 工程化部署脚本
     -a, --action <ACTION>      服务操作: start, stop, restart, status
 
 更新功能:
-    -u, --update               更新 Xray 和 cloudflared 到最新版本
+    -u, --update               Xray 对齐固定版本，cloudflared 更新到最新
 
 卸载:
     --uninstall                卸载所有服务并清理文件

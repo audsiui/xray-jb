@@ -12,13 +12,12 @@ run_uninstall() {
     # 清理临时文件
     rm -f /tmp/cloudflared_token.sh
 
+    # 移除 xj 快捷命令
+    rm -f /usr/local/bin/xj
+
     log_warn "清理文件: ${WORK_DIR}"
     # 清理所有配置文件和二进制文件
     rm -f "${WORK_DIR}/config.json"
-    rm -f "${WORK_DIR}/.direct_info"
-    rm -f "${WORK_DIR}/.domain_info"
-    rm -f "${WORK_DIR}/.reality_keys"
-    rm -f "${WORK_DIR}/.xhttp_info"
     rm -f "${WORK_DIR}/.cf_token"
     rm -f "${WORK_DIR}/xray"
     rm -f "${WORK_DIR}/cloudflared"
@@ -28,6 +27,8 @@ run_uninstall() {
     rm -f "${WORK_DIR}/geosite.dat"
     rm -rf "${WORK_DIR}/logs"
     rm -rf "${WORK_DIR}/confs"
+    rm -rf "${WORK_DIR}/nodes"
+    rm -rf "${WORK_DIR}/scripts"
 
     # 如果目录为空则删除
     rmdir "${WORK_DIR}" 2>/dev/null || true

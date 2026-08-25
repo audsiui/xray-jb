@@ -1,134 +1,125 @@
-# Xray VLESS 部署脚本
+# xray-jb
 
-![Shell](https://img.shields.io/badge/shell-bash-blue)
-![License](https://img.shields.io/github/license/audsiui/xray-jb)
+模块化的 Xray VLESS 多节点部署管理脚本。支持 REALITY / WS 直连 / Cloudflare Tunnel / XHTTP 四种模式，**同类型节点可添加多个**，一键增删，支持 Alpine（OpenRC）与 Debian/Ubuntu/CentOS（systemd）。
 
-Xray 多模式一键安装，支持 VLESS+WS/VLESS+REALITY/VLESS+XHTTP 等多种协议，可在同一进程中同时运行。
+## 特性
+
+- **多节点管理**：每种模式可添加多个节点（不同端口），支持查看链接与删除单个节点
+- **`xj` 快捷命令**：首次运行后自动安装，之后随时输入 `xj` 打开管理菜单，不重复下载
+- **固定核心版本**：Xray 钉死为 `v26.3.27`（见 `lib/system.sh` 的 `XRAY_VERSION`），不受上游格式变更影响
+- **最新配置规范**：REALITY 使用 `target` 字段、sniffing 含 `quic` + `routeOnly`，与官方示例一致
+- **最小依赖**：Alpine 仅需 `bash curl ca-certificates`；Xray 为静态链接二进制，无需 glibc 兼容层
+- **工程化设计**：模块化脚本、统一 confdir 配置、节点注册表、失败回滚、日志轮转
 
 ## 快速开始
 
-### 使用配置生成器（推荐）
-
-访问 [在线配置生成器](https://audsiui.github.io/xray-jb/generator.html) 生成安装命令：
-
-1. 选择协议类型（WS/XHTTP/REALITY/CF Tunnel）
-2. 填写配置参数
-3. 复制生成的命令到服务器执行
-
-### 直接运行
-
 ```bash
+# 一键运行（交互式菜单）
 bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh)
 ```
 
-## 支持的协议
-
-| 模式 | 协议 | 默认端口 | 说明 |
-|------|------|----------|------|
-| direct | VLESS + WebSocket | 8080 | 传统直连模式，适合配合 CDN |
-| tunnel | VLESS + WebSocket + CF Tunnel | 10086 | 内网穿透，无需公网 IP |
-| reality | VLESS + REALITY | 8443 | 新型直连，TLS 指纹伪装 |
-| xhttp | VLESS + XHTTP | 8081 | 新型 HTTP 传输协议 |
-
-## 命令行参数
-
-| 参数 | 说明 |
-|------|------|
-| `-m, --mode` | 安装模式: `direct`/`tunnel`/`reality`/`xhttp`/`uninstall`/`manage`/`update` |
-| `-p, --port` | 端口号 |
-| `-d, --domain` | 域名 (tunnel 模式必需，reality 模式可选) |
-| `-t, --token` | Cloudflare Tunnel Token (tunnel 模式必需) |
-| `--opt-domain` | 优选域名 (tunnel 模式可选，默认 `cf.tencentapp.cn`) |
-| `-a, --action` | 服务操作: `start`/`stop`/`restart`/`status` |
-| `-q, --quiet` | 静默模式 |
-| `-h, --help` | 帮助 |
-
-## 安装示例
+按菜单提示添加节点。首次运行完成后：
 
 ```bash
-# 直连模式
-bash main.sh --mode direct --port 8080
-
-# REALITY 模式
-bash main.sh --mode reality --port 8443 --domain www.microsoft.com
-
-# XHTTP 模式
-bash main.sh --mode xhttp --port 8081
-
-# 隧道模式
-bash main.sh --mode tunnel --domain example.com --token xxxx
-
-# 四种模式可以共存安装
-bash main.sh --mode direct --port 8080
-bash main.sh --mode xhttp --port 8081
-bash main.sh --mode reality --port 8443
-bash main.sh --mode tunnel --port 10086 --domain xxx --token xxx
+xj        # 随时打开管理菜单
 ```
 
-## 服务管理
+## 支持的节点类型
+
+| 模式 | 协议栈 | 默认端口 | 说明 |
+|------|--------|---------|------|
+| direct | VLESS + WS | 8080 | 直连，无需域名 |
+| tunnel | VLESS + WS + CF Tunnel | 10086 | 内网穿透，需 Cloudflare Tunnel Token |
+| reality | VLESS + REALITY (Vision) | 8443 | 新型直连，无需自备证书 |
+| xhttp | VLESS + XHTTP | 8081 | 新型传输层 |
+
+> 同一模式可重复添加多个节点（使用不同端口），也可多种模式共存。
+
+## 命令行（非交互）用法
 
 ```bash
-# 交互式菜单
-bash main.sh  # 选择 5
+bash main.sh -m reality -p 8443                       # 添加 REALITY 节点
+bash main.sh -m reality -p 8444                       # 再加一个 REALITY 节点
+bash main.sh -m direct -p 8080                        # 添加 WS 直连节点
+bash main.sh -m tunnel -p 10086 -d example.com -t <TOKEN>   # 隧道节点
+bash main.sh -m xhttp -p 8081                         # XHTTP 节点
 
-# 命令行
-bash main.sh --manage --action status
-bash main.sh --manage --action restart
+bash main.sh -M -a status      # 服务状态
+bash main.sh -M -a restart     # 重启服务
+bash main.sh -u                # 更新组件
+bash main.sh --uninstall       # 卸载全部
 ```
 
-**手动管理服务:**
+完整参数见 `bash main.sh -h`。
 
-Systemd: `systemctl start/stop/restart/status xray`
-OpenRC: `rc-service xray start/stop/restart/status`
+## 节点管理
 
-服务名: `xray`(主服务) / `cloudflared-t`(CF Tunnel，仅隧道模式)
+主菜单选择 `5. 节点管理`：
 
-## 日志
+- 列出全部节点（类型 / 端口 / UUID）
+- 输入序号查看单个节点的分享链接与配置详情
+- `l` 查看全部节点分享链接（`vless://` 一键复制）
+- `d` 删除节点（自动移除配置并重启 Xray）
 
-**位置**: `/opt/xray-bundle/logs/`
-
-```bash
-# 实时查看
-tail -f /opt/xray-bundle/logs/xray.log
-
-# systemd 额外日志
-journalctl -u xray -f
-```
-
-日志自动轮转，保留 3 个备份。
-
-## 文件路径
+## 数据目录结构
 
 ```
 /opt/xray-bundle/
-├── config.json          # 统一配置文件（所有入站）
-├── .direct_info         # 直连模式信息
-├── .domain_info         # 隧道模式信息
-├── .reality_keys        # REALITY 密钥信息
-├── .xhttp_info          # XHTTP 模式信息
-├── xray                # Xray 程序
-├── cloudflared         # CF Tunnel 程序
-└── logs/               # 日志目录
+├── xray                    # Xray 二进制（静态链接）
+├── cloudflared             # cloudflared 二进制（隧道模式）
+├── confs/                  # 各节点入站配置（多节点统一加载）
+│   ├── 10_direct_8080.json
+│   ├── 20_reality_8443.json
+│   └── ...
+├── nodes/                  # 节点注册表（每节点一个 .info 文件）
+│   ├── reality_8443.info
+│   └── reality_8444.info
+├── logs/                   # 运行日志（自动轮转）
+└── scripts/                # 脚本持久化副本（供 xj 调用）
 ```
 
-## 共存说明
+## 系统要求与依赖
 
-本脚本采用**单进程多入站**架构：
+| 系统 | 包管理器 | 安装的依赖 |
+|------|---------|-----------|
+| Alpine | apk | `bash curl ca-certificates`（unzip 等由 busybox 提供） |
+| Debian/Ubuntu | apt | `curl unzip ca-certificates` |
+| CentOS | yum | `curl unzip ca-certificates` |
 
-- **一个 Xray 进程**同时处理所有协议的入站连接
-- **统一配置文件** (`config.json`) 包含所有入站配置
-- 每种模式的数据保存在各自的 `.xxx_info` 文件中
-- 安装新模式时会自动重启 Xray 服务应用配置
+架构支持 `x86_64` 与 `aarch64`。
 
-## 优选域名
+## 服务管理
 
-隧道模式默认使用 `cf.tencentapp.cn`，可通过 `--opt-domain` 自定义。
+**systemd（Debian/Ubuntu/CentOS）**
+
+```bash
+systemctl start|stop|restart|status xray            # Xray（所有节点）
+systemctl start|stop|restart|status cloudflared-t   # CF Tunnel（隧道模式）
+```
+
+**OpenRC（Alpine）**
+
+```bash
+rc-service xray start|stop|restart|status
+rc-service cloudflared-t start|stop|restart|status
+```
+
+## 版本升级策略
+
+- **Xray**：版本钉死为 `v26.3.27`，`xj` 菜单中的"更新"会将 Xray 对齐到该固定版本。升级钉死版本时需同步检查 `core/install_reality.sh` 的密钥解析逻辑（上游曾在 v26 将 `x25519` 公钥行改为 `Password (PublicKey)` 导致过解析失效）
+- **cloudflared**：跟随上游 latest
+
+## Docker
+
+提供 `docker/Dockerfile`，基于 alpine 构建镜像运行，Xray 同样钉死 `v26.3.27`（构建参数 `XRAY_VERSION` 可覆盖），详见 `docker/README.md`。
 
 ## 注意事项
 
-1. 防火墙需放行所选端口 (TCP)
-2. 不同模式需使用不同端口避免冲突
-3. Alpine 会自动安装兼容包 (`gcompat` 等)
+1. 必须以 root 运行
+2. 防火墙需放行所选端口（TCP）；云服务器还需放行安全组
+3. 不同节点需使用不同端口避免冲突
+4. REALITY 监听非 443 端口时 Xray 会输出 GFW 相关警告，属正常提示
+5. 卸载会删除 `/opt/xray-bundle`、所有服务及 `xj` 命令
 
 ## License
 

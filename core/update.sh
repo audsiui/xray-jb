@@ -1,11 +1,7 @@
 #!/bin/bash
 
-# 获取 Xray 最新版本
-get_latest_xray_version() {
-    local version
-    version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases/latest" | grep -oP '"tag_name":\s*"\K[^"]+' | head -n 1)
-    echo "$version"
-}
+# Xray 版本已钉死（见 lib/system.sh 的 XRAY_VERSION），不再追踪上游 latest，
+# 避免上游格式变化导致密钥解析失效。
 
 # 获取当前 Xray 版本
 get_current_xray_version() {
@@ -15,7 +11,7 @@ get_current_xray_version() {
     fi
 
     local version
-    version=$("$XRAY_BIN" version 2>/dev/null | grep -oP 'Xray\s+\K[0-9.]+' | head -n 1)
+    version=$("$XRAY_BIN" version 2>/dev/null | sed -n 's/^Xray \([0-9.]*\) .*/\1/p' | head -n 1)
     if [[ -z "$version" ]]; then
         echo "未知"
     else
@@ -26,7 +22,7 @@ get_current_xray_version() {
 # 获取 cloudflared 最新版本
 get_latest_cloudflared_version() {
     local version
-    version=$(curl -s "https://api.github.com/repos/cloudflare/cloudflared/releases/latest" | grep -oP '"tag_name":\s*"\K[^"]+' | head -n 1)
+    version=$(curl -s "https://api.github.com/repos/cloudflare/cloudflared/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
     echo "$version"
 }
 
@@ -38,7 +34,7 @@ get_current_cloudflared_version() {
     fi
 
     local version
-    version=$("$CF_BIN" --version 2>/dev/null | grep -oP 'cloudflared version\s+\K[0-9.]+' | head -n 1)
+    version=$("$CF_BIN" --version 2>/dev/null | sed -n 's/.*version *\([0-9.]*\) .*/\1/p' | head -n 1)
     if [[ -z "$version" ]]; then
         echo "未知"
     else
@@ -46,23 +42,22 @@ get_current_cloudflared_version() {
     fi
 }
 
-# 更新 Xray
+# 更新 Xray（重新下载固定版本 v${XRAY_VERSION}）
 update_xray() {
     log_info "正在更新 Xray..."
 
-    local current_version latest_version
+    local current_version
     current_version=$(get_current_xray_version)
-    latest_version=$(get_latest_xray_version)
 
     log_info "当前版本: ${current_version}"
-    log_info "最新版本: ${latest_version}"
+    log_info "目标版本(固定): v${XRAY_VERSION}"
 
-    if [[ "$current_version" == "$latest_version" ]]; then
-        log_info "Xray 已是最新版本"
+    if [[ "$current_version" == "$XRAY_VERSION" ]]; then
+        log_info "Xray 已是固定版本 v${XRAY_VERSION}"
         return 0
     fi
 
-    read -p "是否更新到 ${latest_version}? [Y/n]: " update_choice
+    read -p "是否重新安装固定版本 v${XRAY_VERSION}? [Y/n]: " update_choice
     update_choice=$(trim "$update_choice")
     if [[ "$update_choice" =~ ^[Nn]$ ]]; then
         log_info "已取消更新"
@@ -125,7 +120,7 @@ update_xray() {
         do_service_action "start" "xray"
     fi
 
-    log_info "Xray 更新完成"
+    log_info "Xray 已更新到固定版本 v${XRAY_VERSION}"
 }
 
 # 更新 cloudflared

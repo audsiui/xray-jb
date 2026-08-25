@@ -33,49 +33,38 @@ run_reality_install() {
 }
 
 # 生成 X25519 密钥对
+# 仅支持固定版本 v${XRAY_VERSION} 的输出格式：
+#   PrivateKey: xxx / Password (PublicKey): xxx / Hash32: xxx
 generate_reality_keys() {
-    # 使用 xray 生成密钥对
-    if [[ -f "${XRAY_BIN}" ]]; then
-        # 检查 xray 是否可以执行（在 Alpine 上可能缺少库）
-        if ! chmod +x "${XRAY_BIN}" 2>/dev/null; then
-            log_warn "无法设置 Xray 执行权限"
-        fi
-
-        # 测试 xray 是否能正常运行
-        local version_output
-        version_output=$("${XRAY_BIN}" version 2>&1)
-        if [[ -z "$version_output" ]]; then
-            log_err "Xray 无法运行，可能是缺少依赖库"
-            if [[ "$OS_TYPE" == "alpine" ]]; then
-                log_info "正在尝试修复 Alpine 依赖..."
-                apk add --no-cache libc6-compat gcompat 2>/dev/null || true
-            fi
-            return 1
-        fi
-
-        local keypair
-        keypair=$("${XRAY_BIN}" x25519 2>&1)
-        # 兼容新旧版本格式
-        if [[ -n "$keypair" ]] && (echo "$keypair" | grep -q "PrivateKey:" || echo "$keypair" | grep -q "Private key:"); then
-            echo "$keypair"
-            return 0
-        else
-            log_err "Xray x25519 命令失败: ${keypair}"
-        fi
+    if [[ ! -f "${XRAY_BIN}" ]]; then
+        log_err "未找到 Xray: ${XRAY_BIN}"
+        return 1
     fi
+
+    chmod +x "${XRAY_BIN}" 2>/dev/null || true
+
+    # 用退出码判断是否能运行（失败时 stderr 也有输出，不能只看输出是否为空）
+    if ! "${XRAY_BIN}" version >/dev/null 2>&1; then
+        log_err "Xray 无法运行，请重新安装（期望版本 v${XRAY_VERSION}）"
+        return 1
+    fi
+
+    local keypair
+    keypair=$("${XRAY_BIN}" x25519 2>&1)
+    if echo "$keypair" | grep -q "^PrivateKey:"; then
+        echo "$keypair"
+        return 0
+    fi
+
+    log_err "Xray x25519 命令失败: ${keypair}"
     return 1
 }
 
 # 生成 shortId
 generate_short_id() {
-    # 生成 8 位十六进制 shortId
+    # 生成 8 位十六进制 shortId（仅用 tr/head，busybox 通用）
     local short_id
-    if command -v xxd >/dev/null 2>&1; then
-        short_id=$(head -c 4 /dev/urandom | xxd -p 2>/dev/null)
-    else
-        # Alpine 可能没有 xxd，使用 od 代替
-        short_id=$(head -c 4 /dev/urandom | od -A n -t x1 | tr -d ' \n')
-    fi
+    short_id=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 8)
     echo "${short_id:-12345678}"
 }
 
@@ -90,9 +79,9 @@ _do_reality_install() {
     # 清理下载缓存
     rm -f "${WORK_DIR}"/*.zip "${WORK_DIR}"/xray-linux-* 2>/dev/null || true
 
-    # 2. 检查是否需要下载 Xray
-    if [[ -f "${XRAY_BIN}" ]] && "${XRAY_BIN}" version >/dev/null 2>&1; then
-        log_info "Xray 已存在，跳过下载"
+    # 2. 检查是否需要下载 Xray（必须是固定版本，否则重新下载）
+    if [[ -f "${XRAY_BIN}" ]] && "${XRAY_BIN}" version 2>/dev/null | grep -q "Xray ${XRAY_VERSION} "; then
+        log_info "Xray v${XRAY_VERSION} 已存在，跳过下载"
     else
         log_info "下载 Xray..."
         XRAY_ZIP="${WORK_DIR}/xray.zip"
@@ -175,6 +164,11 @@ _do_reality_install() {
         done
     fi
 
+    # 同模式同端口的节点不允许重复添加
+    if ! check_existing_install "reality" "${PORT}"; then
+        return 1
+    fi
+
     # 生成 UUID
     UUID=$(cat /proc/sys/kernel/random/uuid)
 
@@ -183,31 +177,13 @@ _do_reality_install() {
     local keypair
     keypair=$(generate_reality_keys)
     if [[ -z "$keypair" ]]; then
-        log_err "生成密钥对失败，请检查 Xray 是否正确安装"
-        log_err "在 Alpine 系统上，可能需要手动安装: apk add libc6-compat gcompat"
-        read -p "是否使用默认密钥（不安全，仅用于测试）？[y/N]: " use_default_key
-        use_default_key=$(trim "$use_default_key")
-        if [[ "$use_default_key" =~ ^[Yy]$ ]]; then
-            PRIVATE_KEY="MHg4ZTZjZTBkMi0wOWJiLTExZWYtYTI3NC0xMjM0NTY3ODkwYWJhYmNkZWYtMTIzNC0xMjNlLWE0NTYtNDI2NjE0MTc0MDAw"
-            PUBLIC_KEY="0u9L2hfI-3gf4eOkT3rwdCw3mbn8CHw3yL3hCKf5xVw"
-        else
-            rollback_install
-            exit 1
-        fi
+        log_err "生成密钥对失败，请检查 Xray 是否为固定版本 v${XRAY_VERSION}"
+        rollback_install
+        exit 1
     else
-        # 解析密钥（兼容新旧版本格式）
-        # 新版本: PrivateKey / Password / Hash32
-        # 旧版本: Private key / Public key
+        # 解析密钥（仅支持固定版本 v${XRAY_VERSION} 格式）
         PRIVATE_KEY=$(echo "$keypair" | awk -F': ' '/^PrivateKey:/{print $2}')
-        if [[ -z "$PRIVATE_KEY" ]]; then
-            PRIVATE_KEY=$(echo "$keypair" | awk -F': ' '/Private key/{print $2}')
-        fi
-
-        # 新版本的 Password 就是公钥（客户端用）
-        PUBLIC_KEY=$(echo "$keypair" | awk -F': ' '/^Password:/{print $2}')
-        if [[ -z "$PUBLIC_KEY" ]]; then
-            PUBLIC_KEY=$(echo "$keypair" | awk -F': ' '/Public key/{print $2}')
-        fi
+        PUBLIC_KEY=$(echo "$keypair" | awk -F': ' '/^Password/{print $2}')
 
         # 验证密钥格式
         if [[ -z "$PRIVATE_KEY" || -z "$PUBLIC_KEY" ]]; then
@@ -222,7 +198,10 @@ _do_reality_install() {
     SHORT_ID=$(generate_short_id)
 
     # 4. 生成 inbound JSON 并添加到统一配置
-    local inbound_json="{ \"tag\": \"reality-${PORT}\", \"port\": ${PORT}, \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\", \"flow\": \"xtls-rprx-vision\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"tcp\", \"security\": \"reality\", \"realitySettings\": { \"show\": false, \"dest\": \"${DOMAIN}:443\", \"xver\": 0, \"serverNames\": [\"${DOMAIN}\"], \"privateKey\": \"${PRIVATE_KEY}\", \"shortIds\": [\"${SHORT_ID}\"] } }, \"sniffing\": { \"enabled\": true, \"destOverride\": [\"http\", \"tls\"] } }"
+    # 字段遵循 Xray v${XRAY_VERSION} 最新写法：
+    #   - realitySettings.target 替代旧字段 dest（源码中 target 优先）
+    #   - sniffing 增加 quic 与 routeOnly（与官方 Xray-examples 一致）
+    local inbound_json="{ \"tag\": \"reality-${PORT}\", \"port\": ${PORT}, \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\", \"flow\": \"xtls-rprx-vision\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"tcp\", \"security\": \"reality\", \"realitySettings\": { \"show\": false, \"target\": \"${DOMAIN}:443\", \"xver\": 0, \"serverNames\": [\"${DOMAIN}\"], \"privateKey\": \"${PRIVATE_KEY}\", \"shortIds\": [\"${SHORT_ID}\"] } }, \"sniffing\": { \"enabled\": true, \"destOverride\": [\"http\", \"tls\", \"quic\"], \"routeOnly\": true } }"
 
     add_inbound_to_config "$inbound_json" "reality" "${PORT}"
 
@@ -230,17 +209,8 @@ _do_reality_install() {
     local xray_args
     xray_args=$(get_xray_start_args)
     
-    # 保存密钥信息（用于显示给用户）
-    KEYS_FILE="${WORK_DIR}/.reality_keys"
-    cat > "$KEYS_FILE" <<EOF
-PORT=${PORT}
-UUID=${UUID}
-PRIVATE_KEY=${PRIVATE_KEY}
-PUBLIC_KEY=${PUBLIC_KEY}
-SHORT_ID=${SHORT_ID}
-DOMAIN=${DOMAIN}
-EOF
-    chmod 600 "$KEYS_FILE"
+    # 保存节点信息到注册表（支持同模式多节点）
+    save_node_info "reality" "${PORT}"
 
     # 5. 启动/重启服务
     if service_exists "xray"; then

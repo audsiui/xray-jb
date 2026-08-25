@@ -11,7 +11,7 @@ PLAIN='\033[0m'
 WORK_DIR="/opt/xray-bundle"
 XRAY_BIN="${WORK_DIR}/xray"
 CF_BIN="${WORK_DIR}/cloudflared"
-CONFIG_FILE="${WORK_DIR}/config.json"
+# Xray 配置目录（多节点统一配置）
 CONFS_DIR="${WORK_DIR}/confs"
 LOG_DIR="${WORK_DIR}/logs"
 MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10MB
@@ -115,14 +115,9 @@ remove_inbound_config() {
     fi
 }
 
-# 获取 Xray 启动参数（使用 confdir 模式）
+# 获取 Xray 启动参数（confdir 模式）
 get_xray_start_args() {
-    if [[ -d "$CONFS_DIR" ]] && [[ -n "$(ls -A "$CONFS_DIR" 2>/dev/null)" ]]; then
-        echo "run -confdir ${CONFS_DIR}"
-    else
-        # 降级到单文件模式（兼容旧版本）
-        echo "run -c ${CONFIG_FILE}"
-    fi
+    echo "run -confdir ${CONFS_DIR}"
 }
 
 check_root() {
@@ -270,14 +265,15 @@ get_public_ip() {
 
     # 回退到 ip a 命令
     if command -v ip >/dev/null 2>&1; then
-        # 获取第一个非本地IPv4地址
-        ip=$(ip -4 addr show 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -n 1)
+        # 获取第一个非本地IPv4地址（用 sed 替代 grep -oP，busybox 无 PCRE）
+        ip=$(ip -4 addr show 2>/dev/null | sed -n 's/.*inet \([0-9.]*\).*$/\1/p' | grep -v '^127\.' | head -n 1)
         if [[ -n "$ip" ]]; then
             echo "$ip"
             return 0
         fi
-        # 尝试 IPv6
-        ip=$(ip -6 addr show 2>/dev/null | grep -oP '(?<=inet6\s)[0-9a-f:]+' | grep -v '^::1' | grep -v '^fe80' | head -n 1)
+        # 尝试 IPv6（排除回环与链路本地地址）
+        ip=$(ip -6 addr show 2>/dev/null | sed -n 's/.*inet6 \([0-9a-f:]*\).*$/\1/p' \
+                | grep -v '^::1' | grep -v '^fe80' | head -n 1)
         if [[ -n "$ip" ]]; then
             echo "$ip"
             return 0
@@ -347,19 +343,15 @@ download_file() {
     return 1
 }
 
-# 解压 ZIP 文件（带验证）
+# 解压 ZIP 文件
+# 注：不使用 unzip -t 预检，busybox 的 unzip 不支持 -t；
+# 文件损坏时解压命令本身会失败，效果等同。
 unzip_file() {
     local zip_file="$1"
     local dest_dir="$2"
 
     if ! command -v unzip >/dev/null 2>&1; then
         log_err "unzip 命令不存在，请先安装"
-        return 1
-    fi
-
-    # 验证 ZIP 文件
-    if ! unzip -t "$zip_file" >/dev/null 2>&1; then
-        log_err "ZIP 文件损坏或无效"
         return 1
     fi
 
@@ -444,19 +436,115 @@ check_mode_exists() {
     return 1
 }
 
-# 检测服务是否已安装
+# 检测服务是否已安装（同模式支持多节点，仅提示不阻断；
+# 返回 1 仅当同模式同端口节点已存在，避免覆盖现有配置）
 check_existing_install() {
-    local mode="$1"  # "direct" / "tunnel" / "reality" / "xhttp"
+    local mode="$1"
+    local port="${2:-}"
 
-    # 检测是否已存在相同模式的配置（通过 confs 目录）
-    if check_mode_exists "$mode"; then
-        log_err "检测到已安装 ${mode} 模式，无法重复安装同模式"
-        log_err "如需重新安装，请先卸载或使用不同端口"
+    if [[ -n "$port" ]] && check_mode_exists "$mode" "$port"; then
+        log_err "${mode} 模式端口 ${port} 的节点已存在"
+        log_err "如需重建请先在节点管理中删除该节点，或更换其他端口"
         return 1
     fi
 
-    # 允许不同模式共存
+    if check_mode_exists "$mode"; then
+        log_info "已存在 ${mode} 模式节点，本次将添加新节点"
+    fi
+
     return 0
+}
+
+# ========== 节点注册表 ==========
+# 每个节点一个信息文件: ${WORK_DIR}/nodes/<mode>_<port>.info (KEY=VAL 格式)
+# 公共字段: MODE, PORT, UUID；其余为各模式专有字段
+NODES_DIR="${WORK_DIR}/nodes"
+
+# 初始化节点目录
+init_nodes_dir() {
+    if [[ ! -d "$NODES_DIR" ]]; then
+        mkdir -p "$NODES_DIR"
+        chmod 700 "$NODES_DIR"
+    fi
+}
+
+# 保存节点信息（调用前先设置好对应变量）
+save_node_info() {
+    local mode="$1" port="$2"
+    init_nodes_dir
+
+    local info_file="${NODES_DIR}/${mode}_${port}.info"
+    {
+        echo "MODE=${mode}"
+        echo "PORT=${port}"
+        echo "UUID=${UUID}"
+        case "$mode" in
+            direct)  echo "PATH=${PATH_STR}" ;;
+            xhttp)   echo "PATH=${PATH_STR}" ;;
+            tunnel)
+                echo "PATH=${PATH_STR}"
+                echo "DOMAIN=${DOMAIN}"
+                echo "OPT_DOMAIN=${OPT_DOMAIN}"
+                ;;
+            reality)
+                echo "PRIVATE_KEY=${PRIVATE_KEY}"
+                echo "PUBLIC_KEY=${PUBLIC_KEY}"
+                echo "SHORT_ID=${SHORT_ID}"
+                echo "DOMAIN=${DOMAIN}"
+                ;;
+        esac
+    } > "$info_file"
+    chmod 600 "$info_file"
+    log_info "节点信息已保存: ${info_file}"
+}
+
+# 删除节点信息文件
+remove_node_info() {
+    local mode="$1" port="$2"
+    local info_file="${NODES_DIR}/${mode}_${port}.info"
+    if [[ -f "$info_file" ]]; then
+        rm -f "$info_file"
+        log_info "已移除节点信息: ${info_file}"
+    fi
+}
+
+# 列出节点信息文件（可选按模式过滤），每行一个路径
+list_node_files() {
+    local mode="${1:-}"
+    init_nodes_dir
+    local pattern="*"
+    [[ -n "$mode" ]] && pattern="${mode}_*"
+    for f in "${NODES_DIR}"/${pattern}.info; do
+        [[ -f "$f" ]] || continue
+        echo "$f"
+    done | sort
+}
+
+# 首次运行后持久化脚本并创建 xj 快捷命令
+ensure_xj_command() {
+    local script_dest="${WORK_DIR}/scripts"
+
+    # 同步脚本文件到持久化目录（内容变化时才覆盖）
+    if [[ -d "$script_dest" ]] && \
+       cmp -s "${SCRIPT_DIR}/main.sh" "${script_dest}/main.sh" && \
+       diff -rq "${SCRIPT_DIR}/lib" "${script_dest}/lib" >/dev/null 2>&1 && \
+       diff -rq "${SCRIPT_DIR}/core" "${script_dest}/core" >/dev/null 2>&1; then
+        : # 无变化
+    else
+        mkdir -p "$script_dest"
+        cp -f "${SCRIPT_DIR}/main.sh" "$script_dest/" 2>/dev/null || true
+        rm -rf "${script_dest}/lib" "${script_dest}/core"
+        cp -rf "${SCRIPT_DIR}/lib" "${SCRIPT_DIR}/core" "$script_dest/" 2>/dev/null || true
+        log_info "脚本已安装到: ${script_dest}"
+    fi
+
+    # 创建 xj 快捷命令
+    local xj_bin="/usr/local/bin/xj"
+    if [[ ! -x "$xj_bin" ]] || ! grep -qF "${script_dest}/main.sh" "$xj_bin" 2>/dev/null; then
+        printf '#!/bin/bash\nexec bash %s/main.sh "$@"\n' "${script_dest}" > "$xj_bin"
+        chmod +x "$xj_bin"
+        log_info "快捷命令已创建: 直接输入 ${GREEN}xj${PLAIN} 即可打开管理菜单"
+    fi
 }
 
 # 获取所有已安装的模式（通过检查 confs 目录）
