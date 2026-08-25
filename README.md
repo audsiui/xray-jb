@@ -13,16 +13,13 @@
 
 ## 快速开始
 
+一键运行（交互式菜单）：
+
 ```bash
-# 一键运行（交互式菜单）
 bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh)
 ```
 
-按菜单提示添加节点。首次运行完成后：
-
-```bash
-xj        # 随时打开管理菜单
-```
+首次运行完成后，随时输入 `xj` 打开管理菜单。
 
 ## 支持的节点类型
 
@@ -37,18 +34,17 @@ xj        # 随时打开管理菜单
 
 ## 命令行（非交互）用法
 
-```bash
-bash main.sh -m reality -p 8443                       # 添加 REALITY 节点
-bash main.sh -m reality -p 8444                       # 再加一个 REALITY 节点
-bash main.sh -m direct -p 8080                        # 添加 WS 直连节点
-bash main.sh -m tunnel -p 10086 -d example.com -t <TOKEN>   # 隧道节点
-bash main.sh -m xhttp -p 8081                         # XHTTP 节点
-
-bash main.sh -M -a status      # 服务状态
-bash main.sh -M -a restart     # 重启服务
-bash main.sh -u                # 更新组件
-bash main.sh --uninstall       # 卸载全部
-```
+| 操作 | 命令 |
+|------|------|
+| 添加 REALITY 节点 | `bash main.sh -m reality -p 8443` |
+| 再加一个 REALITY 节点 | `bash main.sh -m reality -p 8444` |
+| 添加 WS 直连节点 | `bash main.sh -m direct -p 8080` |
+| 隧道节点 | `bash main.sh -m tunnel -p 10086 -d example.com -t <TOKEN>` |
+| XHTTP 节点 | `bash main.sh -m xhttp -p 8081` |
+| 服务状态 | `bash main.sh -M -a status` |
+| 重启服务 | `bash main.sh -M -a restart` |
+| 更新组件 | `bash main.sh -u` |
+| 卸载全部 | `bash main.sh --uninstall` |
 
 完整参数见 `bash main.sh -h`。
 
@@ -90,11 +86,11 @@ bash main.sh --uninstall       # 卸载全部
 
 ## 服务管理
 
-**systemd（Debian/Ubuntu/CentOS）**
+**systemd（Debian/Ubuntu/CentOS）**，服务名：`xray`（所有节点）、`cloudflared-t`（隧道模式）：
 
 ```bash
-systemctl start|stop|restart|status xray            # Xray（所有节点）
-systemctl start|stop|restart|status cloudflared-t   # CF Tunnel（隧道模式）
+systemctl start|stop|restart|status xray
+systemctl start|stop|restart|status cloudflared-t
 ```
 
 **OpenRC（Alpine）**
