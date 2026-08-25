@@ -201,7 +201,7 @@ _do_reality_install() {
     # 字段遵循 Xray v${XRAY_VERSION} 最新写法：
     #   - realitySettings.target 替代旧字段 dest（源码中 target 优先）
     #   - sniffing 增加 quic 与 routeOnly（与官方 Xray-examples 一致）
-    local inbound_json="{ \"tag\": \"reality-${PORT}\", \"port\": ${PORT}, \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\", \"flow\": \"xtls-rprx-vision\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"tcp\", \"security\": \"reality\", \"realitySettings\": { \"show\": false, \"target\": \"${DOMAIN}:443\", \"xver\": 0, \"serverNames\": [\"${DOMAIN}\"], \"privateKey\": \"${PRIVATE_KEY}\", \"shortIds\": [\"${SHORT_ID}\"] } }, \"sniffing\": { \"enabled\": true, \"destOverride\": [\"http\", \"tls\", \"quic\"], \"routeOnly\": true } }"
+    local inbound_json="{ \"tag\": \"reality-${PORT}\", \"port\": ${PORT}, \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\", \"email\": \"reality-${PORT}\", \"flow\": \"xtls-rprx-vision\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"tcp\", \"security\": \"reality\", \"realitySettings\": { \"show\": false, \"target\": \"${DOMAIN}:443\", \"xver\": 0, \"serverNames\": [\"${DOMAIN}\"], \"privateKey\": \"${PRIVATE_KEY}\", \"shortIds\": [\"${SHORT_ID}\"] } }, \"sniffing\": { \"enabled\": true, \"destOverride\": [\"http\", \"tls\", \"quic\"], \"routeOnly\": true } }"
 
     add_inbound_to_config "$inbound_json" "reality" "${PORT}"
 

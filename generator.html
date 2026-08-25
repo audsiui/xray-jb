@@ -1,558 +1,520 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Xray Configuration</title>
-    <style>
-        :root {
-            --bg-color: #000000;
-            --surface-color: rgba(28, 28, 30, 0.6);
-            --surface-active: rgba(44, 44, 46, 0.8);
-            --border-color: rgba(255, 255, 255, 0.1);
-            --accent-color: #0A84FF;
-            --accent-gradient: linear-gradient(135deg, #0A84FF, #5E5CE6);
-            --text-primary: #FFFFFF;
-            --text-secondary: rgba(235, 235, 245, 0.6);
-            --glass-blur: blur(20px);
-            --radius-l: 24px;
-            --radius-m: 16px;
-            --radius-s: 12px;
-            --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>xray-jb · 安装命令生成器</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%233fb950' d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>">
+<style>
+:root {
+    /* 分层近黑背景 */
+    --bg: #0b0c0e;
+    --surface-1: #111214;
+    --surface-2: #16181b;
+    --surface-3: #1c1f23;
+    /* 发丝级边框 */
+    --line: rgba(255, 255, 255, .07);
+    --line-strong: rgba(255, 255, 255, .14);
+    /* 文本三级 */
+    --fg: #e2e4e8;
+    --fg-dim: #9b9fa8;
+    --fg-faint: #60646d;
+    /* 唯一强调色：终端绿 */
+    --accent: #3fb950;
+    --accent-hover: #46c258;
+    --accent-dim: rgba(63, 185, 80, .12);
+    --danger: #e5534b;
+    --danger-dim: rgba(229, 83, 75, .12);
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-            -webkit-tap-highlight-color: transparent;
-        }
+    --r-card: 10px;
+    --r-el: 6px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
 
-        body {
-            font-family: var(--font-stack);
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            padding: 40px 20px;
-            /* 模拟高级的弥散光背景 */
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(10, 132, 255, 0.15) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(94, 92, 230, 0.15) 0%, transparent 40%);
-        }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-        .container {
-            width: 100%;
-            max-width: 680px;
-            animation: fadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
+html { color-scheme: dark; }
 
-        /* 头部设计 */
-        header {
-            text-align: center;
-            margin-bottom: 48px;
-        }
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.55;
+}
 
-        h1 {
-            font-size: 34px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            margin-bottom: 8px;
-            background: linear-gradient(to right, #fff, #888);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+.wrap { max-width: 620px; margin: 0 auto; padding: 0 20px 72px; }
 
-        .subtitle {
-            font-size: 17px;
-            color: var(--text-secondary);
-            font-weight: 400;
-        }
+/* ---------- 顶栏：左标题右版本，非居中 hero ---------- */
+.top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 0 26px;
+}
+.top .id { display: flex; align-items: baseline; gap: 10px; }
+.top h1 { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+.top .sub { font-size: 12.5px; color: var(--fg-faint); }
+.ver {
+    font-family: var(--mono); font-size: 11.5px; color: var(--fg-dim);
+    border: 1px solid var(--line); border-radius: 99px;
+    padding: 2px 10px;
+}
 
-        /* iOS 风格的分组容器 */
-        .group-container {
-            background: var(--surface-color);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border-radius: var(--radius-l);
-            padding: 24px;
-            margin-bottom: 24px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        }
+/* ---------- 分区标签 ---------- */
+.sec { margin-bottom: 28px; }
+.sec-label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--fg-faint);
+    margin-bottom: 10px;
+}
+.sec-label b { color: var(--fg-dim); font-weight: 500; }
 
-        .group-title {
-            font-size: 13px;
-            text-transform: uppercase;
-            color: var(--text-secondary);
-            margin-bottom: 16px;
-            padding-left: 4px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
+/* ---------- 卡片容器 ---------- */
+.panel {
+    background: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    padding: 16px;
+}
 
-        /* 协议选择 Grid */
-        .mode-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-        }
+/* ---------- 分段选择器 ---------- */
+.seg {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 4px;
+}
+@media (max-width: 480px) { .seg { grid-template-columns: repeat(2, 1fr); } }
 
-        .mode-option {
-            position: relative;
-        }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label {
+    display: block;
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 13px; font-weight: 500; color: var(--fg-dim);
+    border-radius: var(--r-el);
+    cursor: pointer;
+    user-select: none;
+    transition: color .15s, background .15s;
+}
+.seg label:hover { color: var(--fg); }
+.seg input:checked + label {
+    background: var(--surface-3);
+    color: var(--fg);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.seg input:focus-visible + label { outline: 1px solid var(--accent); outline-offset: 1px; }
 
-        .mode-option input {
-            position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+.mode-desc {
+    margin-top: 10px;
+    font-size: 12.5px; color: var(--fg-faint);
+    min-height: 19px;
+    padding-left: 2px;
+}
 
-        .mode-label {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 16px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: var(--radius-m);
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            height: 100%;
-        }
+/* ---------- 表单 ---------- */
+.row { display: flex; align-items: center; gap: 12px; }
+.row + .row { margin-top: 12px; }
 
-        .mode-icon {
-            width: 32px;
-            height: 32px;
-            margin-bottom: 12px;
-            color: var(--text-secondary);
-            transition: color 0.3s;
-        }
-        
-        .mode-icon svg {
-            width: 100%;
-            height: 100%;
-        }
+.hidden { display: none !important; }
 
-        .mode-name {
-            font-size: 15px;
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
+.field { flex: 1; min-width: 0; }
+.field label {
+    display: block;
+    font-size: 12px; color: var(--fg-dim);
+    margin-bottom: 6px;
+}
+.field label i { font-style: normal; color: var(--accent); }
 
-        .mode-desc {
-            font-size: 12px;
-            color: var(--text-secondary);
-            line-height: 1.3;
-        }
+.field input {
+    width: 100%; height: 38px;
+    padding: 0 11px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-el);
+    color: var(--fg);
+    font-size: 13.5px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.field input.mono { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.field input::placeholder { color: var(--fg-faint); }
+.field input:hover { border-color: var(--line-strong); }
+.field input:focus {
+    border-color: var(--accent);
+    background: var(--surface-1);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.field input.invalid {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-dim);
+}
 
-        /* 选中状态 */
-        .mode-option input:checked + .mode-label {
-            background: rgba(10, 132, 255, 0.15);
-            border-color: rgba(10, 132, 255, 0.4);
-        }
+/* ---------- 主按钮：扁平填充，无渐变无光晕 ---------- */
+.go {
+    width: 100%; height: 42px;
+    margin-top: 18px;
+    background: var(--accent);
+    color: #0b0c0e;
+    border: none; border-radius: var(--r-el);
+    font-size: 13.5px; font-weight: 600; font-family: inherit;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+}
+.go:hover { background: var(--accent-hover); }
+.go:active { transform: translateY(1px); }
 
-        .mode-option input:checked + .mode-label .mode-icon {
-            color: var(--accent-color);
-        }
+/* ---------- 输出区 ---------- */
+.out { display: none; }
+.out.show { display: block; animation: fadein .25s ease; }
 
-        .mode-label:active {
-            transform: scale(0.98);
-        }
+.block {
+    background: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    overflow: hidden;
+}
+.block + .block { margin-top: 10px; }
 
-        /* 表单输入区域 - 类似 iOS 设置列表 */
-        .input-list {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: var(--radius-s);
-            overflow: hidden;
-        }
+.bar {
+    display: flex; align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+}
+.bar .tag {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--fg-dim);
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 7px;
+}
+.bar .sp { flex: 1; }
 
-        .form-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-        
-        .form-row:last-child {
-            margin-bottom: 0;
-        }
+.copy {
+    display: flex; align-items: center; gap: 5px;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--r-el);
+    color: var(--fg-dim);
+    font-size: 12px; font-family: inherit;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: color .15s, border-color .15s, background .15s;
+}
+.copy:hover { color: var(--fg); border-color: var(--line-strong); }
+.copy.ok { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
 
-        .form-group {
-            flex: 1;
-            min-width: 200px;
-            position: relative;
-            padding: 0 16px;
-            height: 56px;
-            display: flex;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            transition: background 0.3s;
-        }
+.cmd {
+    margin: 0;
+    padding: 13px 14px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.75;
+    color: var(--fg);
+    white-space: pre-wrap;
+    word-break: break-all;
+    user-select: all;
+    counter-reset: none;
+}
+.cmd::before {
+    content: "$ ";
+    color: var(--accent);
+    user-select: none;
+}
 
-        .form-group:last-child {
-            border-bottom: none;
-        }
+.note {
+    margin-top: 12px;
+    font-size: 12px; color: var(--fg-faint);
+}
+.note code {
+    font-family: var(--mono); font-size: 11.5px;
+    color: var(--fg-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+}
 
-        .form-group:focus-within {
-            background: rgba(255, 255, 255, 0.05);
-        }
+/* ---------- Toast ---------- */
+#toast {
+    position: fixed; left: 50%; bottom: 30px;
+    transform: translate(-50%, 8px);
+    background: var(--surface-3);
+    border: 1px solid var(--line-strong);
+    color: var(--fg);
+    font-size: 13px;
+    padding: 9px 16px;
+    border-radius: var(--r-el);
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    z-index: 9;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.err { border-color: var(--danger); color: #ff8580; }
 
-        .form-group label {
-            font-size: 15px;
-            color: var(--text-primary);
-            width: 120px;
-            flex-shrink: 0;
-        }
+@keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
 
-        .form-group input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: var(--accent-color);
-            font-size: 16px;
-            text-align: right;
-            outline: none;
-            font-family: var(--font-stack);
-        }
-
-        .form-group input::placeholder {
-            color: rgba(235, 235, 245, 0.3);
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        /* 按钮设计 */
-        .generate-btn {
-            width: 100%;
-            padding: 18px;
-            background: var(--accent-gradient);
-            border: none;
-            border-radius: var(--radius-l);
-            color: white;
-            font-size: 17px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
-            transition: all 0.3s ease;
-            margin-top: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .generate-btn:hover {
-            box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
-            transform: translateY(-1px);
-        }
-
-        .generate-btn:active {
-            transform: scale(0.98);
-        }
-
-        /* 结果区域 */
-        .result-card {
-            margin-top: 32px;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-        }
-
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .result-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .copy-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: var(--text-primary);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .copy-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .command-box {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: var(--radius-s);
-            padding: 16px;
-            font-family: "Menlo", "Monaco", monospace;
-            font-size: 13px;
-            color: #A8E6CF;
-            line-height: 1.6;
-            overflow-x: auto;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-
-        .info-text {
-            margin-top: 12px;
-            font-size: 13px;
-            color: var(--text-secondary);
-            text-align: center;
-        }
-
-        /* 动画 */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* SVG 图标定义 */
-        .icon {
-            stroke: currentColor;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            fill: none;
-        }
-    </style>
+footer {
+    margin-top: 40px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: var(--fg-faint);
+}
+footer a { color: var(--fg-dim); text-decoration: none; }
+footer a:hover { color: var(--fg); }
+</style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Xray 配置生成器</h1>
-            <p class="subtitle">Designed for Performance</p>
-        </header>
+<div class="wrap">
 
-        <div class="group-container">
-            <div class="group-title">协议类型 / PROTOCOL</div>
-            <div class="mode-grid">
-                <div class="mode-option">
-                    <input type="radio" name="mode" id="mode-direct" value="direct" checked>
-                    <label for="mode-direct" class="mode-label">
-                        <div class="mode-icon">
-                            <svg viewBox="0 0 24 24" class="icon"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                        </div>
-                        <div class="mode-name">VLESS + WS</div>
-                        <div class="mode-desc">标准直连模式</div>
-                    </label>
-                </div>
-                <div class="mode-option">
-                    <input type="radio" name="mode" id="mode-xhttp" value="xhttp">
-                    <label for="mode-xhttp" class="mode-label">
-                        <div class="mode-icon">
-                            <svg viewBox="0 0 24 24" class="icon"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                        </div>
-                        <div class="mode-name">XHTTP</div>
-                        <div class="mode-desc">下一代传输协议</div>
-                    </label>
-                </div>
-                <div class="mode-option">
-                    <input type="radio" name="mode" id="mode-reality" value="reality">
-                    <label for="mode-reality" class="mode-label">
-                        <div class="mode-icon">
-                            <svg viewBox="0 0 24 24" class="icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        </div>
-                        <div class="mode-name">REALITY</div>
-                        <div class="mode-desc">无损伪装技术</div>
-                    </label>
-                </div>
-                <div class="mode-option">
-                    <input type="radio" name="mode" id="mode-tunnel" value="tunnel">
-                    <label for="mode-tunnel" class="mode-label">
-                        <div class="mode-icon">
-                            <svg viewBox="0 0 24 24" class="icon"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
-                        </div>
-                        <div class="mode-name">CF Tunnel</div>
-                        <div class="mode-desc">Cloudflare 隧道</div>
-                    </label>
-                </div>
-            </div>
+    <div class="top">
+        <div class="id">
+            <h1>xray-jb</h1>
+            <span class="sub">安装命令生成器</span>
         </div>
-
-        <div class="group-container">
-            <div class="group-title">详细配置 / CONFIGURATION</div>
-            
-            <div class="input-list">
-                <div class="form-group">
-                    <label>服务端口</label>
-                    <input type="number" id="port" placeholder="Default: 8080" min="1" max="65535">
-                </div>
-
-                <div id="tunnel-fields" class="hidden">
-                    <div class="form-group">
-                        <label>绑定域名</label>
-                        <input type="text" id="domain" placeholder="v.example.com">
-                    </div>
-                    <div class="form-group">
-                        <label>优选地址</label>
-                        <input type="text" id="opt-domain" placeholder="Optional">
-                    </div>
-                    <div class="form-group">
-                        <label>CF Token</label>
-                        <input type="text" id="token" placeholder="Tunnel Token Key">
-                    </div>
-                </div>
-
-                <div id="reality-fields" class="hidden">
-                    <div class="form-group">
-                        <label>SNI 伪装</label>
-                        <input type="text" id="sni" placeholder="www.microsoft.com" value="www.microsoft.com">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <button class="generate-btn" onclick="generateCommand()">
-            生成安装指令
-        </button>
-
-        <div id="result" class="group-container result-card hidden">
-            <div id="bash-section">
-                <div class="result-header">
-                    <span class="result-title">
-                        <svg viewBox="0 0 24 24" class="icon" style="width:18px;height:18px;margin-right:6px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-                        Terminal Command
-                    </span>
-                    <button class="copy-btn" onclick="copyCommand('command', this)">Copy</button>
-                </div>
-                <div class="command-box" id="command"></div>
-            </div>
-            <div id="docker-section" class="hidden" style="margin-top: 20px;">
-                <div class="result-header">
-                    <span class="result-title">
-                        <svg viewBox="0 0 24 24" class="icon" style="width:18px;height:18px;margin-right:6px;"><path d="M4 10h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10z"/><path d="M8 10V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/></svg>
-                        Docker Command
-                    </span>
-                    <button class="copy-btn" onclick="copyCommand('docker-command', this)">Copy</button>
-                </div>
-                <div class="command-box" id="docker-command"></div>
-            </div>
-            <p class="info-text">在服务器终端粘贴并运行上述命令</p>
-        </div>
+        <span class="ver">xray v26.3.27</span>
     </div>
 
-    <script>
-        // 监听模式切换
-        document.querySelectorAll('input[name="mode"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                const mode = this.value;
-                
-                // 简单的显隐逻辑
-                document.getElementById('tunnel-fields').classList.toggle('hidden', mode !== 'tunnel');
-                document.getElementById('reality-fields').classList.toggle('hidden', mode !== 'reality');
-                
-                // 设置默认端口占位符
-                const portInput = document.getElementById('port');
-                const placeholders = {
-                    'direct': 'Default: 8080',
-                    'xhttp': 'Default: 8081',
-                    'reality': 'Default: 8443',
-                    'tunnel': 'Default: 10086'
-                };
-                portInput.placeholder = placeholders[mode];
-            });
+    <!-- 协议 -->
+    <section class="sec">
+        <div class="sec-label"><b>01</b> · MODE / 协议</div>
+        <div class="seg">
+            <input type="radio" name="mode" id="m-direct" value="direct" checked>
+            <label for="m-direct">WS 直连</label>
+            <input type="radio" name="mode" id="m-reality" value="reality">
+            <label for="m-reality">REALITY</label>
+            <input type="radio" name="mode" id="m-xhttp" value="xhttp">
+            <label for="m-xhttp">XHTTP</label>
+            <input type="radio" name="mode" id="m-tunnel" value="tunnel">
+            <label for="m-tunnel">CF 隧道</label>
+        </div>
+        <p class="mode-desc" id="mode-desc"></p>
+    </section>
+
+    <!-- 参数 -->
+    <section class="sec">
+        <div class="sec-label"><b>02</b> · PARAMS / 参数</div>
+        <div class="panel">
+            <div class="row">
+                <div class="field">
+                    <label for="port">端口</label>
+                    <input type="number" id="port" class="mono" inputmode="numeric"
+                           placeholder="默认 8080" min="1" max="65535">
+                </div>
+                <div class="field hidden" id="w-sni">
+                    <label for="sni">SNI 伪装域名</label>
+                    <input type="text" id="sni" value="www.microsoft.com" spellcheck="false">
+                </div>
+            </div>
+
+            <div id="w-tunnel" class="hidden">
+                <div class="row" style="margin-top:12px">
+                    <div class="field">
+                        <label for="domain">绑定域名 <i>*</i></label>
+                        <input type="text" id="domain" class="mono" placeholder="v.example.com" spellcheck="false" autocomplete="off">
+                    </div>
+                    <div class="field">
+                        <label for="opt-domain">优选地址</label>
+                        <input type="text" id="opt-domain" class="mono" placeholder="cf.tencentapp.cn" spellcheck="false" autocomplete="off">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label for="token">Tunnel Token <i>*</i></label>
+                        <input type="text" id="token" class="mono" placeholder="eyJ..." spellcheck="false" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="go" id="go">生成安装命令</button>
+    </section>
+
+    <!-- 输出 -->
+    <section class="out" id="out">
+        <div class="sec-label"><b>03</b> · OUTPUT / 命令</div>
+
+        <div class="block">
+            <div class="bar">
+                <span class="tag">bash</span>
+                <span class="sp"></span>
+                <button class="copy" data-copy="cmd">复制</button>
+            </div>
+            <pre class="cmd" id="cmd"></pre>
+        </div>
+
+        <div class="block hidden" id="blk-docker">
+            <div class="bar">
+                <span class="tag">docker</span>
+                <span class="sp"></span>
+                <button class="copy" data-copy="dcmd">复制</button>
+            </div>
+            <pre class="cmd" id="dcmd"></pre>
+        </div>
+
+        <p class="note" id="note">粘贴到服务器终端运行；同一台服务器换端口重复执行即可添加多个节点。</p>
+    </section>
+
+    <footer>
+        <span>xray-jb</span>
+        <a href="https://github.com/audsiui/xray-jb" target="_blank" rel="noopener">GitHub ↗</a>
+    </footer>
+
+</div>
+
+<div id="toast" role="alert"></div>
+
+<script>
+(function () {
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+
+    const DEFAULT_PORTS = { direct: 8080, xhttp: 8081, reality: 8443, tunnel: 10086 };
+    const SCRIPT_URL = "https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh";
+    const MODE_DESC = {
+        direct:  "VLESS over WebSocket，无需域名与证书，适合有裸 IP 的服务器。",
+        reality: "VLESS + REALITY (Vision)，借用目标站点 TLS 指纹伪装，无需自备证书。",
+        xhttp:   "VLESS over XHTTP，新一代传输层，抗封锁能力更强。",
+        tunnel:  "VLESS + WebSocket + Cloudflare Tunnel，隐藏源站 IP，需要一个托管在 CF 的域名。"
+    };
+
+    let toastTimer = null;
+    function toast(msg, err) {
+        const t = $("toast");
+        t.textContent = msg;
+        t.className = "show" + (err ? " err" : "");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => (t.className = ""), 2200);
+    }
+
+    const getMode = () => document.querySelector('input[name="mode"]:checked').value;
+
+    // 含特殊字符的值用单引号包裹
+    const shq = (v) => /^[A-Za-z0-9._-]+$/.test(v) ? v : "'" + v.replace(/'/g, `'\\''`) + "'";
+
+    const mark = (id, bad) => { $(id).classList.toggle("invalid", bad); return bad; };
+
+    function build() {
+        const mode = getMode();
+        const portRaw = $("port").value.trim();
+        const parts = [`bash <(curl -sL ${SCRIPT_URL})`, "--mode", mode];
+        let err = false;
+
+        if (portRaw !== "") {
+            const n = Number(portRaw);
+            const bad = !Number.isInteger(n) || n < 1 || n > 65535;
+            mark("port", bad); err = err || bad;
+            if (!bad) parts.push("--port", String(n));
+        } else mark("port", false);
+
+        let docker = null;
+
+        if (mode === "reality") {
+            const sni = $("sni").value.trim();
+            if (sni && sni !== "www.microsoft.com") parts.push("--domain", shq(sni));
+
+        } else if (mode === "tunnel") {
+            const domain = $("domain").value.trim();
+            const token = $("token").value.trim();
+            const opt = $("opt-domain").value.trim();
+
+            mark("domain", !domain); mark("token", !token);
+
+            if (domain && token) {
+                parts.push("--domain", shq(domain), "--token", shq(token));
+                if (opt && opt !== "cf.tencentapp.cn") parts.push("--opt-domain", shq(opt));
+            } else err = true;
+
+            if (domain && token) {
+                const p = portRaw !== "" && Number.isInteger(Number(portRaw)) ? Number(portRaw) : DEFAULT_PORTS.tunnel;
+                docker =
+                    `docker run -d \\\n` +
+                    `  --name xray-tunnel \\\n` +
+                    `  --restart always \\\n` +
+                    `  -p ${p}:${p} \\\n` +
+                    `  -e TUNNEL_TOKEN=${shq(token)} \\\n` +
+                    `  -e DOMAIN=${shq(domain)} \\\n` +
+                    `  -e PORT=${p} \\\n` +
+                    `  -e OPT_DOMAIN=${opt ? shq(opt) : "''"} \\\n` +
+                    `  ghcr.io/audsiui/xray-jb:latest`;
+            }
+        }
+        return { bash: parts.join(" "), docker, err };
+    }
+
+    function render(revealOnError) {
+        const r = build();
+        if (r.err) { if (revealOnError) toast("请补全标红的必填项", true); return false; }
+
+        $("cmd").textContent = r.bash;
+        if (r.docker) {
+            $("dcmd").textContent = r.docker;
+            $("blk-docker").classList.remove("hidden");
+            $("note").textContent = "二选一：脚本方式或 Docker 方式；同一台服务器换端口重复执行可添加多个节点。";
+        } else {
+            $("blk-docker").classList.add("hidden");
+            $("note").textContent = "粘贴到服务器终端运行；同一台服务器换端口重复执行即可添加多个节点。";
+        }
+        $("out").classList.add("show");
+        return true;
+    }
+
+    // 模式切换
+    document.querySelectorAll('input[name="mode"]').forEach(r => {
+        r.addEventListener("change", () => {
+            const m = getMode();
+            $("mode-desc").textContent = MODE_DESC[m];
+            $("w-tunnel").classList.toggle("hidden", m !== "tunnel");
+            $("w-sni").classList.toggle("hidden", m !== "reality");
+            $("port").placeholder = "默认 " + DEFAULT_PORTS[m];
+            if ($("out").classList.contains("show")) render(false);
         });
+    });
 
-        function generateCommand() {
-            const mode = document.querySelector('input[name="mode"]:checked').value;
-            const port = document.getElementById('port').value;
-            
-            let command = 'bash <(curl -sL https://raw.githubusercontent.com/audsiui/xray-jb/main/main.sh)';
-            command += ` --mode ${mode}`;
-            
-            // 端口映射表
-            const defaultPorts = {
-                'direct': '8080',
-                'xhttp': '8081',
-                'reality': '8443',
-                'tunnel': '10086'
-            };
-            if (port && port !== defaultPorts[mode]) {
-                command += ` --port ${port}`;
-            }
-            
-            // 模式特有参数
-            let dockerCommand = '';
-            if (mode === 'tunnel') {
-                const domain = document.getElementById('domain').value.trim();
-                const token = document.getElementById('token').value.trim();
-                const optDomain = document.getElementById('opt-domain').value.trim();
-                
-                if (!domain || !token) {
-                    // 使用原生 alert 保持简单，实际项目中可以用 Toast
-                    alert('请填写 Cloudflare 域名和 Token');
-                    return;
-                }
-                
-                command += ` --domain ${domain}`;
-                command += ` --token ${token}`;
-                if (optDomain) {
-                    command += ` --opt-domain ${optDomain}`;
-                }
-                
-                // 生成 Docker 命令
-                const actualPort = port || defaultPorts[mode];
-                dockerCommand = `docker run -d \\\n  --name xray-tunnel \\\n  --restart always \\\n  -p ${actualPort}:${actualPort} \\\n  -e TUNNEL_TOKEN=${token} \\\n  -e DOMAIN=${domain} \\\n  -e PORT=${actualPort} \\\n  -e OPT_DOMAIN=${optDomain || ''} \\\n  ghcr.io/audsiui/xray-jb:latest`;
-            } else if (mode === 'reality') {
-                const sni = document.getElementById('sni').value.trim();
-                if (sni && sni !== 'www.microsoft.com') {
-                    command += ` --domain ${sni}`;
-                }
-            }
-            
-            // 渲染结果
-            const resultBox = document.getElementById('result');
-            const commandBox = document.getElementById('command');
-            const dockerSection = document.getElementById('docker-section');
-            const dockerCommandBox = document.getElementById('docker-command');
-            
-            commandBox.textContent = command;
-            resultBox.classList.remove('hidden');
-            
-            // 显示或隐藏 Docker 命令区域
-            if (dockerCommand) {
-                dockerCommandBox.textContent = dockerCommand;
-                dockerSection.classList.remove('hidden');
-            } else {
-                dockerSection.classList.add('hidden');
-            }
-            
-            // 平滑滚动
-            resultBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+    // 输入实时刷新
+    ["port", "sni", "domain", "token", "opt-domain"].forEach(id => {
+        $(id).addEventListener("input", () => {
+            $(id).classList.remove("invalid");
+            if ($("out").classList.contains("show")) render(false);
+        });
+    });
 
-        function copyCommand(elementId, btn) {
-            const command = document.getElementById(elementId).textContent;
-            
-            navigator.clipboard.writeText(command).then(() => {
-                const originalText = btn.textContent;
-                btn.textContent = 'Copied';
-                btn.style.background = '#30D158'; // iOS Green
-                btn.style.color = '#FFFFFF';
-                
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.background = '';
-                    btn.style.color = '';
-                }, 2000);
-            }).catch(() => {
-                alert('复制失败，请手动选择复制');
-            });
-        }
-    </script>
+    $("go").addEventListener("click", () => {
+        if (render(true)) $("out").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+
+    // 复制
+    document.querySelectorAll(".copy").forEach(btn => {
+        btn.addEventListener("click", async () => {
+            const text = $(btn.dataset.copy).textContent;
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (e) {
+                const ta = document.createElement("textarea");
+                ta.value = text;
+                ta.style.cssText = "position:fixed;opacity:0";
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand("copy");
+                ta.remove();
+            }
+            btn.textContent = "已复制";
+            btn.classList.add("ok");
+            setTimeout(() => { btn.textContent = "复制"; btn.classList.remove("ok"); }, 1600);
+        });
+    });
+
+    // 初始描述
+    $("mode-desc").textContent = MODE_DESC.direct;
+})();
+</script>
 </body>
 </html>

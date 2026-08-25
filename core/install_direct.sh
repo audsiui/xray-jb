@@ -121,7 +121,7 @@ _do_direct_install() {
     PATH_STR="/$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1)"
 
     # 4. 生成 inbound JSON 并添加到统一配置
-    local inbound_json="{ \"tag\": \"direct-${PORT}\", \"port\": ${PORT}, \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"ws\", \"wsSettings\": { \"path\": \"${PATH_STR}\" } } }"
+    local inbound_json="{ \"tag\": \"direct-${PORT}\", \"port\": ${PORT}, \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\", \"email\": \"direct-${PORT}\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"ws\", \"wsSettings\": { \"path\": \"${PATH_STR}\" } }, \"sniffing\": { \"enabled\": true, \"destOverride\": [\"http\", \"tls\", \"quic\"], \"routeOnly\": true } }"
 
     add_inbound_to_config "$inbound_json" "direct" "${PORT}"
 

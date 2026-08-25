@@ -34,25 +34,37 @@ init_confs_dir() {
         chmod 755 "$CONFS_DIR"
     fi
 
-    # 创建基础配置文件（日志）
-    if [[ ! -f "${CONFS_DIR}/00_log.json" ]]; then
-        cat > "${CONFS_DIR}/00_log.json" <<'EOF'
+    # 基础配置：日志（固定内容，每次重写保证与脚本版本一致）
+    cat > "${CONFS_DIR}/00_log.json" <<'EOF'
 {
   "log": { "loglevel": "warning", "access": "none" }
 }
 EOF
-        chmod 600 "${CONFS_DIR}/00_log.json"
-    fi
+    chmod 600 "${CONFS_DIR}/00_log.json"
 
-    # 创建基础 outbounds 文件
-    if [[ ! -f "${CONFS_DIR}/99_outbounds.json" ]]; then
-        cat > "${CONFS_DIR}/99_outbounds.json" <<'EOF'
+    # 基础配置：出站与路由（生产标配）
+    # - blackhole 出站配合路由规则：
+    #   1. 屏蔽 BT 下载流量，避免 VPS 被机房封禁
+    #   2. 屏蔽发往私网地址的流量，防止借节点探测内网/云元数据服务
+    cat > "${CONFS_DIR}/99_base.json" <<'EOF'
 {
-  "outbounds": [{ "protocol": "freedom" }]
+  "outbounds": [
+    { "protocol": "freedom",   "tag": "direct" },
+    { "protocol": "blackhole", "tag": "block" }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      { "protocol": ["bittorrent"], "outboundTag": "block" },
+      { "ip": ["geoip:private"],    "outboundTag": "block" }
+    ]
+  }
 }
 EOF
-        chmod 600 "${CONFS_DIR}/99_outbounds.json"
-    fi
+    chmod 600 "${CONFS_DIR}/99_base.json"
+
+    # 清理已被 99_base.json 取代的旧文件
+    rm -f "${CONFS_DIR}/99_outbounds.json"
 }
 
 # 添加 inbound 配置（创建单独的配置文件）

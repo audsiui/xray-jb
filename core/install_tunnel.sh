@@ -215,7 +215,7 @@ _do_tunnel_install() {
     PATH_STR="/$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1)"
 
     # 3. 生成 inbound JSON 并添加到统一配置
-    local inbound_json="{ \"tag\": \"tunnel-${PORT}\", \"port\": ${PORT}, \"listen\": \"0.0.0.0\", \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"ws\", \"wsSettings\": { \"path\": \"${PATH_STR}\" } } }"
+    local inbound_json="{ \"tag\": \"tunnel-${PORT}\", \"port\": ${PORT}, \"listen\": \"0.0.0.0\", \"protocol\": \"vless\", \"settings\": { \"clients\": [{ \"id\": \"${UUID}\", \"email\": \"tunnel-${PORT}\" }], \"decryption\": \"none\" }, \"streamSettings\": { \"network\": \"ws\", \"wsSettings\": { \"path\": \"${PATH_STR}\" } }, \"sniffing\": { \"enabled\": true, \"destOverride\": [\"http\", \"tls\", \"quic\"], \"routeOnly\": true } }"
 
     add_inbound_to_config "$inbound_json" "tunnel" "${PORT}"
 
